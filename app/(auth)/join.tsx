@@ -27,9 +27,18 @@ export default function JoinSpaceScreen() {
     
     const success = joinSpace(code.toUpperCase());
     if (success) {
-      router.replace('/(tabs)');
+      Alert.alert(
+        'Erfolgreich beigetreten!',
+        'Du bist dem Space erfolgreich beigetreten.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)/(home)')
+          }
+        ]
+      );
     } else {
-      Alert.alert('Fehler', 'Ungültiger oder abgelaufener Code');
+      Alert.alert('Fehler', 'Ungültiger oder abgelaufener Code. Bitte überprüfe den Code oder frage nach einem neuen.');
     }
   };
 
@@ -63,7 +72,7 @@ export default function JoinSpaceScreen() {
         </View>
         
         <Text style={styles.hint}>
-          Der Code ist nur 20 Sekunden gültig
+          Der Code ist nur 20 Sekunden gültig (für schnelle Codes) oder 5 Minuten (für E-Mail-Einladungen)
         </Text>
         
         <TouchableOpacity

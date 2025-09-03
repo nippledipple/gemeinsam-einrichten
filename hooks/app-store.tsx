@@ -184,22 +184,92 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const joinSpace = useCallback((code: string) => {
     if (!state.currentUser) return false;
     
-    // Real validation would happen here against a backend
-    // For now, we require a valid format but don't create demo spaces
     if (code.length !== 4 || !/^[A-Z0-9]{4}$/.test(code)) {
       return false;
     }
     
-    // In production, this would validate the code against your backend
-    // and join the actual space if valid
+    // Check if current space has this code and it's not expired
+    if (state.currentSpace?.code === code && 
+        state.currentSpace.codeExpiry && 
+        Date.now() < state.currentSpace.codeExpiry) {
+      
+      // Check if user is already a member
+      const isAlreadyMember = state.currentSpace.members.some(m => m.id === state.currentUser!.id);
+      if (isAlreadyMember) {
+        addNotification({
+          type: 'info',
+          title: 'Bereits Mitglied',
+          message: 'Du bist bereits Mitglied dieses Spaces.',
+        });
+        return true;
+      }
+      
+      // Add user to space
+      setState(prev => ({
+        ...prev,
+        currentSpace: prev.currentSpace ? {
+          ...prev.currentSpace,
+          members: [...prev.currentSpace.members, state.currentUser!],
+        } : null,
+      }));
+      
+      addNotification({
+        type: 'joined',
+        title: 'Space beigetreten',
+        message: `Du bist dem Space "${state.currentSpace.name}" beigetreten!`,
+      });
+      
+      return true;
+    }
+    
+    // Check if there's a pending invite with this code
+    if (state.currentSpace?.pendingInvites) {
+      const validInvite = state.currentSpace.pendingInvites.find(invite => 
+        invite.code === code && 
+        Date.now() < invite.expiry &&
+        invite.email.toLowerCase() === state.currentUser!.email.toLowerCase()
+      );
+      
+      if (validInvite) {
+        // Check if user is already a member
+        const isAlreadyMember = state.currentSpace.members.some(m => m.id === state.currentUser!.id);
+        if (isAlreadyMember) {
+          addNotification({
+            type: 'info',
+            title: 'Bereits Mitglied',
+            message: 'Du bist bereits Mitglied dieses Spaces.',
+          });
+          return true;
+        }
+        
+        // Add user to space and remove the used invite
+        setState(prev => ({
+          ...prev,
+          currentSpace: prev.currentSpace ? {
+            ...prev.currentSpace,
+            members: [...prev.currentSpace.members, state.currentUser!],
+            pendingInvites: prev.currentSpace.pendingInvites?.filter(inv => inv.code !== code) || [],
+          } : null,
+        }));
+        
+        addNotification({
+          type: 'joined',
+          title: 'Space beigetreten',
+          message: `Du bist dem Space "${state.currentSpace.name}" beigetreten!`,
+        });
+        
+        return true;
+      }
+    }
+    
     addNotification({
-      type: 'info',
+      type: 'error',
       title: 'Code ungültig',
-      message: 'Dieser Code ist nicht gültig oder abgelaufen. Bitte frage nach einem neuen Code.',
+      message: 'Dieser Code ist nicht gültig, abgelaufen oder nicht für deine E-Mail-Adresse bestimmt.',
     });
     
     return false;
-  }, [state.currentUser, addNotification]);
+  }, [state.currentUser, state.currentSpace, addNotification]);
 
   // Item functions
   const addItem = useCallback((
@@ -397,6 +467,25 @@ export const [AppProvider, useApp] = createContextHook(() => {
     return room;
   }, []);
 
+  // Clean up expired invites
+  const cleanupExpiredInvites = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      currentSpace: prev.currentSpace ? {
+        ...prev.currentSpace,
+        pendingInvites: prev.currentSpace.pendingInvites?.filter(invite => 
+          Date.now() < invite.expiry
+        ) || [],
+      } : null,
+    }));
+  }, []);
+
+  // Clean up expired invites every minute
+  useEffect(() => {
+    const interval = setInterval(cleanupExpiredInvites, 60000);
+    return () => clearInterval(interval);
+  }, [cleanupExpiredInvites]);
+
   const inviteToSpace = useCallback((email: string) => {
     if (!state.currentSpace) return false;
     
@@ -409,15 +498,46 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return false;
     }
     
-    // In production, this would send a real email invitation
+    // Check if user is already a member
+    const isAlreadyMember = state.currentSpace.members.some(m => m.email.toLowerCase() === email.toLowerCase());
+    if (isAlreadyMember) {
+      addNotification({
+        type: 'info',
+        title: 'Bereits Mitglied',
+        message: `${email} ist bereits Mitglied dieses Spaces.`,
+      });
+      return false;
+    }
+    
+    // Generate a temporary invitation code for this email
+    const inviteCode = generateSpaceCode();
+    const expiry = Date.now() + 300000; // 5 minutes for email invites
+    
+    // Store the invitation (in production this would be in backend)
+    setState(prev => ({
+      ...prev,
+      currentSpace: prev.currentSpace ? {
+        ...prev.currentSpace,
+        pendingInvites: [
+          ...(prev.currentSpace.pendingInvites || []),
+          {
+            email,
+            code: inviteCode,
+            expiry,
+            invitedBy: state.currentUser!.id,
+          }
+        ],
+      } : null,
+    }));
+    
     addNotification({
       type: 'info',
-      title: 'Einladung vorbereitet',
-      message: `Einladung für ${email} wurde vorbereitet. Diese Funktion wird in einem zukünftigen Update verfügbar sein.`,
+      title: 'Einladung erstellt',
+      message: `Einladungscode für ${email}: ${inviteCode}\nGültig für 5 Minuten. Teile diesen Code mit der Person.`,
     });
     
     return true;
-  }, [state.currentSpace, addNotification]);
+  }, [state.currentSpace, state.currentUser, addNotification]);
 
   // Computed values
   const priorityItems = useMemo(() => 

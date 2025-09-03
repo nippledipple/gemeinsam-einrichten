@@ -5,12 +5,20 @@ export interface User {
   avatar?: string;
 }
 
+export interface PendingInvite {
+  email: string;
+  code: string;
+  expiry: number;
+  invitedBy: string;
+}
+
 export interface Space {
   id: string;
   name: string;
   code?: string;
   codeExpiry?: number;
   members: User[];
+  pendingInvites?: PendingInvite[];
   createdAt: number;
 }
 

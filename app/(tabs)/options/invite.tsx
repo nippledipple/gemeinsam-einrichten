@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Copy, Share } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useApp } from '@/hooks/app-store';
 
 export default function InviteScreen() {
@@ -35,7 +36,7 @@ export default function InviteScreen() {
     }
   };
 
-  const handleGenerateCode = () => {
+  const handleGenerateCode = async () => {
     const code = generateInviteCode();
     if (code) {
       Alert.alert(
@@ -45,7 +46,8 @@ export default function InviteScreen() {
           { text: 'OK' },
           { 
             text: 'Code kopieren', 
-            onPress: () => {
+            onPress: async () => {
+              await Clipboard.setStringAsync(code);
               Alert.alert('Kopiert', 'Code wurde in die Zwischenablage kopiert');
             }
           }
@@ -54,22 +56,22 @@ export default function InviteScreen() {
     }
   };
 
-  const handleShareSpace = () => {
+  const handleShareSpace = async () => {
     if (!currentSpace) return;
     
-    Alert.alert(
-      'Space teilen',
-      `Teile deinen Space "${currentSpace.name}" mit anderen über verschiedene Apps.`,
-      [
-        { text: 'Abbrechen', style: 'cancel' },
-        { 
-          text: 'Teilen', 
-          onPress: () => {
-            Alert.alert('Geteilt', 'Space wurde erfolgreich geteilt');
-          }
-        }
-      ]
-    );
+    const code = generateInviteCode();
+    if (code) {
+      const shareText = `Tritt meinem Wohnideen-Space "${currentSpace.name}" bei!\n\nCode: ${code}\n\nDer Code ist 20 Sekunden gültig.`;
+      
+      if (Platform.OS === 'web') {
+        await Clipboard.setStringAsync(shareText);
+        Alert.alert('Kopiert', 'Einladungstext wurde in die Zwischenablage kopiert');
+      } else {
+        // On mobile, we could use Share API here
+        await Clipboard.setStringAsync(shareText);
+        Alert.alert('Kopiert', 'Einladungstext wurde in die Zwischenablage kopiert. Du kannst ihn jetzt in WhatsApp, iMessage oder anderen Apps teilen.');
+      }
+    }
   };
 
   return (
