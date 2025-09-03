@@ -64,7 +64,7 @@ export interface Room {
 
 export interface Notification {
   id: string;
-  type: 'proposal' | 'response' | 'joined' | 'priority' | 'info';
+  type: 'proposal' | 'response' | 'joined' | 'priority' | 'info' | 'error';
   title: string;
   message: string;
   data?: any;

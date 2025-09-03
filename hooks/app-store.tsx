@@ -86,8 +86,32 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
 
 
+  // Email validation function
+  const isValidEmail = (email: string): boolean => {
+    const validDomains = [
+      'gmail.com', 'googlemail.com',
+      'gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch',
+      'web.de', 't-online.de',
+      'yahoo.com', 'yahoo.de',
+      'hotmail.com', 'hotmail.de',
+      'outlook.com', 'outlook.de',
+      'icloud.com', 'me.com',
+      'aol.com', 'aol.de'
+    ];
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return false;
+    
+    const domain = email.split('@')[1]?.toLowerCase();
+    return validDomains.includes(domain);
+  };
+
   // Auth functions
   const signIn = useCallback((name: string, email: string) => {
+    if (!isValidEmail(email)) {
+      throw new Error('Bitte verwende eine gültige E-Mail-Adresse von einem bekannten Anbieter (Gmail, GMX, Web.de, etc.)');
+    }
+    
     const user: User = {
       id: Date.now().toString(),
       name,
@@ -158,26 +182,23 @@ export const [AppProvider, useApp] = createContextHook(() => {
   }, []);
 
   const joinSpace = useCallback((code: string) => {
-    // In a real app, this would validate against a backend
-    // For demo, we'll create a mock space
     if (!state.currentUser) return false;
     
-    const space: Space = {
-      id: Date.now().toString(),
-      name: `Space ${code}`,
-      members: [state.currentUser],
-      createdAt: Date.now(),
-    };
+    // Real validation would happen here against a backend
+    // For now, we require a valid format but don't create demo spaces
+    if (code.length !== 4 || !/^[A-Z0-9]{4}$/.test(code)) {
+      return false;
+    }
     
-    setState(prev => ({ ...prev, currentSpace: space }));
-    
+    // In production, this would validate the code against your backend
+    // and join the actual space if valid
     addNotification({
-      type: 'joined',
-      title: 'Willkommen!',
-      message: `Du bist dem Space beigetreten`,
+      type: 'info',
+      title: 'Code ungültig',
+      message: 'Dieser Code ist nicht gültig oder abgelaufen. Bitte frage nach einem neuen Code.',
     });
     
-    return true;
+    return false;
   }, [state.currentUser, addNotification]);
 
   // Item functions
@@ -240,35 +261,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
       ),
     }));
     
-    if (asProposal && state.currentSpace && state.currentSpace.members.length > 1 && state.currentUser) {
-      const proposal: Proposal = {
-        id: Date.now().toString(),
-        itemId: item.id,
-        item,
-        proposedBy: state.currentUser.id,
-        proposedTo: state.currentSpace.members.find(m => m.id !== state.currentUser!.id)?.id || '',
-        status: 'pending',
-        createdAt: Date.now(),
-      };
-      
-      setState(prev => ({
-        ...prev,
-        proposals: [...prev.proposals, proposal],
-      }));
-      
-      // Simulate receiving a proposal notification
-      setTimeout(() => {
-        addNotification({
-          type: 'proposal',
-          title: 'Neuer Vorschlag!',
-          message: `${state.currentUser!.name} schlägt vor: ${title}`,
-          data: proposal,
-        });
-      }, 1000);
-    }
+    // Proposals will be handled by real backend in production
+    // For now, items are added directly without proposal system
     
     return item;
-  }, [state.currentUser, state.currentSpace, state.categories, addNotification]);
+  }, [state.currentUser, state.categories]);
 
   const respondToProposal = useCallback((proposalId: string, response: 'accepted' | 'rejected' | 'later') => {
     setState(prev => {
@@ -403,12 +400,20 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const inviteToSpace = useCallback((email: string) => {
     if (!state.currentSpace) return false;
     
-    // In a real app, this would send an email invitation
-    // For demo, we'll just show a success message
+    if (!isValidEmail(email)) {
+      addNotification({
+        type: 'error',
+        title: 'Ungültige E-Mail',
+        message: 'Bitte verwende eine gültige E-Mail-Adresse von einem bekannten Anbieter.',
+      });
+      return false;
+    }
+    
+    // In production, this would send a real email invitation
     addNotification({
       type: 'info',
-      title: 'Einladung gesendet',
-      message: `Einladung wurde an ${email} gesendet`,
+      title: 'Einladung vorbereitet',
+      message: `Einladung für ${email} wurde vorbereitet. Diese Funktion wird in einem zukünftigen Update verfügbar sein.`,
     });
     
     return true;

@@ -36,8 +36,13 @@ export default function WelcomeScreen() {
       Alert.alert('Fehler', 'Bitte fülle alle Felder aus');
       return;
     }
-    signIn(name, email);
-    setStep('space');
+    
+    try {
+      signIn(name, email);
+      setStep('space');
+    } catch (error) {
+      Alert.alert('Fehler', error instanceof Error ? error.message : 'Unbekannter Fehler');
+    }
   };
 
   const handleCreateSpace = () => {
