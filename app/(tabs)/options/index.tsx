@@ -24,6 +24,7 @@ import {
   Sun,
   Smartphone,
   ChevronRight,
+  Users,
 } from 'lucide-react-native';
 import { useApp } from '@/hooks/app-store';
 
@@ -92,6 +93,10 @@ export default function OptionsScreen() {
 
   const handleAddRoom = () => {
     router.push('/(tabs)/options/add-room');
+  };
+
+  const handleJoinSpace = () => {
+    router.push('/(tabs)/options/join-space');
   };
 
   const handleShare = () => {
@@ -211,6 +216,13 @@ export default function OptionsScreen() {
             title="Raum hinzufügen"
             subtitle="Erstelle einen neuen Raum"
             onPress={handleAddRoom}
+          />
+          
+          <OptionItem
+            icon={<Users size={24} color={colors.secondary} />}
+            title="Space beitreten"
+            subtitle="Tritt einem weiteren Space bei"
+            onPress={handleJoinSpace}
           />
         </View>
 
