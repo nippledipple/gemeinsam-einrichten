@@ -75,7 +75,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         const parsed = JSON.parse(stored);
         setState(prev => ({
           ...prev,
-          ...parsed,
+          ...(parsed || {}),
           isLoading: false,
         }));
       } else {
@@ -153,7 +153,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     setState(prev => ({ 
       ...prev, 
       currentSpace: space,
-      allSpaces: [...prev.allSpaces, space]
+      allSpaces: [...(prev.allSpaces || []), space]
     }));
   }, [state.currentUser]);
 
@@ -185,7 +185,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => ({
       ...prev,
-      notifications: [newNotification, ...prev.notifications],
+      notifications: [newNotification, ...(prev.notifications || [])],
     }));
   }, []);
 
@@ -197,7 +197,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
     
     // Check all spaces for this code
-    for (const space of state.allSpaces) {
+    for (const space of (state.allSpaces || [])) {
       // Check if space has this code and it's not expired
       if (space.code === code && 
           space.codeExpiry && 
@@ -233,7 +233,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         setState(prev => ({
           ...prev,
           currentSpace: updatedSpace,
-          allSpaces: prev.allSpaces.map(s => s.id === space.id ? updatedSpace : s),
+          allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
         }));
         
         addNotification({
@@ -285,7 +285,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           setState(prev => ({
             ...prev,
             currentSpace: updatedSpace,
-            allSpaces: prev.allSpaces.map(s => s.id === space.id ? updatedSpace : s),
+            allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
           }));
           
           addNotification({
@@ -312,7 +312,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       setState(prev => ({
         ...prev,
         currentSpace: mockSpace,
-        allSpaces: [...prev.allSpaces, mockSpace],
+        allSpaces: [...(prev.allSpaces || []), mockSpace],
       }));
       
       addNotification({
@@ -352,7 +352,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     const icon = detected.icon;
     
     // Find or create category
-    let category = state.categories.find(c => c.name === finalCategoryName);
+    let category = (state.categories || []).find(c => c.name === finalCategoryName);
     if (!category) {
       category = {
         id: Date.now().toString(),
@@ -363,7 +363,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       };
       setState(prev => ({
         ...prev,
-        categories: [...prev.categories, category!],
+        categories: [...(prev.categories || []), category!],
       }));
     }
     
@@ -385,8 +385,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => ({
       ...prev,
-      items: [...prev.items, item],
-      categories: prev.categories.map(c => 
+      items: [...(prev.items || []), item],
+      categories: (prev.categories || []).map(c => 
         c.id === category!.id 
           ? { ...c, itemCount: c.itemCount + 1 }
           : c
@@ -401,24 +401,24 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   const respondToProposal = useCallback((proposalId: string, response: 'accepted' | 'rejected' | 'later') => {
     setState(prev => {
-      const proposal = prev.proposals.find(p => p.id === proposalId);
+      const proposal = (prev.proposals || []).find(p => p.id === proposalId);
       if (!proposal) return prev;
       
-      const updatedProposals = prev.proposals.map(p => 
+      const updatedProposals = (prev.proposals || []).map(p => 
         p.id === proposalId 
           ? { ...p, status: response, respondedAt: Date.now() }
           : p
       );
       
       const updatedItems = response === 'accepted' 
-        ? prev.items.map(i => 
+        ? (prev.items || []).map(i => 
             i.id === proposal.itemId 
               ? { ...i, status: 'accepted' as const, updatedAt: Date.now() }
               : i
           )
         : response === 'rejected'
-        ? prev.items.filter(i => i.id !== proposal.itemId)
-        : prev.items;
+        ? (prev.items || []).filter(i => i.id !== proposal.itemId)
+        : (prev.items || []);
       
       return {
         ...prev,
@@ -438,8 +438,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   const togglePriority = useCallback((itemId: string) => {
     setState(prev => {
-      const priorityItems = prev.items.filter(i => i.isPriority);
-      const item = prev.items.find(i => i.id === itemId);
+      const priorityItems = (prev.items || []).filter(i => i.isPriority);
+      const item = (prev.items || []).find(i => i.id === itemId);
       
       if (!item) return prev;
       
@@ -447,7 +447,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         // Remove from priority
         return {
           ...prev,
-          items: prev.items.map(i => 
+          items: (prev.items || []).map(i => 
             i.id === itemId 
               ? { ...i, isPriority: false, priorityLevel: undefined }
               : i.priorityLevel && i.priorityLevel > (item.priorityLevel || 0)
@@ -459,7 +459,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         // Add to priority
         return {
           ...prev,
-          items: prev.items.map(i => 
+          items: (prev.items || []).map(i => 
             i.id === itemId 
               ? { ...i, isPriority: true, priorityLevel: priorityItems.length + 1 }
               : i
@@ -474,7 +474,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const toggleFavorite = useCallback((itemId: string) => {
     setState(prev => ({
       ...prev,
-      items: prev.items.map(i => 
+      items: (prev.items || []).map(i => 
         i.id === itemId 
           ? { ...i, isFavorite: !i.isFavorite }
           : i
@@ -485,7 +485,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const updateRoomBudget = useCallback((roomId: string, budget: number) => {
     setState(prev => ({
       ...prev,
-      rooms: prev.rooms.map(r => 
+      rooms: (prev.rooms || []).map(r => 
         r.id === roomId 
           ? { ...r, budget }
           : r
@@ -498,7 +498,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const markNotificationRead = useCallback((notificationId: string) => {
     setState(prev => ({
       ...prev,
-      notifications: prev.notifications.map(n => 
+      notifications: (prev.notifications || []).map(n => 
         n.id === notificationId 
           ? { ...n, read: true }
           : n
@@ -523,7 +523,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => ({
       ...prev,
-      rooms: [...prev.rooms, room],
+      rooms: [...(prev.rooms || []), room],
     }));
     
     return room;
@@ -535,7 +535,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       ...prev,
       currentSpace: prev.currentSpace ? {
         ...prev.currentSpace,
-        pendingInvites: prev.currentSpace.pendingInvites?.filter(invite => 
+        pendingInvites: (prev.currentSpace.pendingInvites || []).filter(invite => 
           Date.now() < invite.expiry
         ) || [],
       } : null,
@@ -581,7 +581,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       currentSpace: prev.currentSpace ? {
         ...prev.currentSpace,
         pendingInvites: [
-          ...(prev.currentSpace.pendingInvites || []),
+          ...((prev.currentSpace && prev.currentSpace.pendingInvites) || []),
           {
             email,
             code: inviteCode,
@@ -603,29 +603,29 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   // Computed values
   const priorityItems = useMemo(() => 
-    state.items
+    (state.items || [])
       .filter(i => i.isPriority && i.status === 'accepted')
       .sort((a, b) => (a.priorityLevel || 0) - (b.priorityLevel || 0)),
     [state.items]
   );
 
   const pendingProposals = useMemo(() => 
-    state.proposals.filter(p => p.status === 'pending'),
+    (state.proposals || []).filter(p => p.status === 'pending'),
     [state.proposals]
   );
 
   const acceptedItems = useMemo(() => 
-    state.items.filter(i => i.status === 'accepted'),
+    (state.items || []).filter(i => i.status === 'accepted'),
     [state.items]
   );
 
   const favoriteItems = useMemo(() => 
-    state.items.filter(i => i.isFavorite),
+    (state.items || []).filter(i => i.isFavorite),
     [state.items]
   );
 
   const unreadNotifications = useMemo(() => 
-    state.notifications.filter(n => !n.read).length,
+    (state.notifications || []).filter(n => !n.read).length,
     [state.notifications]
   );
 

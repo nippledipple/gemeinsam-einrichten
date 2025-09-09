@@ -6,15 +6,15 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { router } from 'expo-router';
-import { Colors } from '@/constants/colors';
+
 import { useApp } from '@/hooks/app-store';
 import { ProposalBanner } from '@/components/ProposalBanner';
 import { PriorityCard } from '@/components/PriorityCard';
 
 export default function HomeScreen() {
-  const { currentSpace, priorityItems, pendingProposals, respondToProposal, togglePriority } = useApp();
+  const { currentSpace, priorityItems, pendingProposals, respondToProposal, togglePriority, colors } = useApp();
 
   const handleProposalResponse = (proposalId: string) => (response: 'accepted' | 'rejected' | 'later') => {
     respondToProposal(proposalId, response);
@@ -24,11 +24,67 @@ export default function HomeScreen() {
     router.push('/(tabs)/search');
   };
 
+
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.text,
+      marginHorizontal: 20,
+      marginBottom: 16,
+    },
+    prioritiesContainer: {
+      paddingHorizontal: 20,
+      gap: 12,
+    },
+    welcomeSection: {
+      padding: 20,
+      alignItems: 'center',
+      marginTop: 40,
+    },
+    welcomeTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+      marginBottom: 12,
+    },
+    welcomeText: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+      lineHeight: 22,
+    },
+    addButton: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    addButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontWeight: '600',
+    },
+  });
+
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Proposal Banners */}
-        {pendingProposals.map((proposal) => (
+        {pendingProposals && pendingProposals.length > 0 && pendingProposals.map((proposal) => (
           <ProposalBanner 
             key={proposal.id} 
             proposal={proposal} 
@@ -71,60 +127,6 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text,
-    marginHorizontal: 20,
-    marginBottom: 16,
-  },
-  prioritiesContainer: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  welcomeSection: {
-    padding: 20,
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  welcomeTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  welcomeText: {
-    fontSize: 16,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  addButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  addButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

@@ -6,9 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { Star, StarOff } from 'lucide-react-native';
+import { StarOff } from 'lucide-react-native';
 import { Item } from '@/types';
-import { Colors } from '@/constants/colors';
+import { useApp } from '@/hooks/app-store';
 
 interface PriorityCardProps {
   item: Item;
@@ -17,7 +17,66 @@ interface PriorityCardProps {
 }
 
 export function PriorityCard({ item, priorityLevel, onTogglePriority }: PriorityCardProps) {
-  const priorityColor = Colors.priority[priorityLevel as keyof typeof Colors.priority];
+  const { colors } = useApp();
+  const priorityColor = colors.priority[priorityLevel as keyof typeof colors.priority];
+
+
+
+  const styles = StyleSheet.create({
+    container: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      marginRight: 12,
+      width: 160,
+      height: 100,
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: 12,
+      borderLeftWidth: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    priorityBadge: {
+      position: 'absolute',
+      top: 8,
+      left: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 4,
+      zIndex: 1,
+    },
+    priorityNumber: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    image: {
+      width: 60,
+      height: 60,
+      borderRadius: 8,
+      backgroundColor: colors.border,
+    },
+    content: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    title: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 4,
+    },
+    price: {
+      fontSize: 12,
+      color: colors.textSecondary,
+    },
+    starButton: {
+      padding: 4,
+    },
+  });
 
   return (
     <View style={[styles.container, { borderLeftColor: priorityColor }]}>
@@ -41,58 +100,3 @@ export function PriorityCard({ item, priorityLevel, onTogglePriority }: Priority
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    marginRight: 12,
-    width: 160,
-    height: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  priorityBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    zIndex: 1,
-  },
-  priorityNumber: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  image: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: Colors.border,
-  },
-  content: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  title: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  price: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  starButton: {
-    padding: 4,
-  },
-});
