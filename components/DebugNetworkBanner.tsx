@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useApp } from '@/hooks/app-store';
 import { pingOnce } from '@/utils/net/Pinger';
-import { HEALTH_CHECK_URL } from '@/constants/config';
+import { HEALTH_CHECK_URL, WSS_URL } from '@/constants/config';
+import { realtimeService } from '@/utils/net/RealtimeService';
 
 interface NetworkDebugInfo {
   pingResult: boolean | null;
@@ -12,6 +13,8 @@ interface NetworkDebugInfo {
   netInfoReachable: boolean | null;
   connectionType: string;
   logs: string[];
+  wsEvents: string[];
+  lastHeartbeat: string;
 }
 
 export default function DebugNetworkBanner() {
@@ -23,6 +26,8 @@ export default function DebugNetworkBanner() {
     netInfoReachable: null,
     connectionType: 'unknown',
     logs: [],
+    wsEvents: [],
+    lastHeartbeat: '-',
   });
 
   const addLog = (message: string) => {
@@ -33,6 +38,16 @@ export default function DebugNetworkBanner() {
     setDebugInfo(prev => ({
       ...prev,
       logs: [logEntry, ...prev.logs.slice(0, 2)] // Keep last 3 logs
+    }));
+  };
+
+  const addWSEvent = (event: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const eventEntry = `${timestamp}: ${event}`;
+    
+    setDebugInfo(prev => ({
+      ...prev,
+      wsEvents: [eventEntry, ...prev.wsEvents.slice(0, 2)] // Keep last 3 events
     }));
   };
 
@@ -86,6 +101,46 @@ export default function DebugNetworkBanner() {
     addLog(`App online status: ${isOnline ? 'ONLINE' : 'OFFLINE'}`);
   }, [isOnline]);
 
+  // Monitor WebSocket events
+  useEffect(() => {
+    const handleConnect = () => {
+      addWSEvent('WS Connected');
+    };
+
+    const handleDisconnect = () => {
+      addWSEvent('WS Disconnected');
+    };
+
+    const handlePresenceUpdate = (data: any) => {
+      addWSEvent(`Presence: ${data.presence?.count || 0} users`);
+    };
+
+    const handleStateBroadcast = () => {
+      addWSEvent('State broadcast received');
+      setDebugInfo(prev => ({
+        ...prev,
+        lastHeartbeat: new Date().toLocaleTimeString(),
+      }));
+    };
+
+    realtimeService.on('connect', handleConnect);
+    realtimeService.on('disconnect', handleDisconnect);
+    realtimeService.on('presence:update', handlePresenceUpdate);
+    realtimeService.on('state:broadcast', handleStateBroadcast);
+
+    return () => {
+      realtimeService.off('connect', handleConnect);
+      realtimeService.off('disconnect', handleDisconnect);
+      realtimeService.off('presence:update', handlePresenceUpdate);
+      realtimeService.off('state:broadcast', handleStateBroadcast);
+    };
+  }, []);
+
+  // Monitor realtime connection status changes
+  useEffect(() => {
+    addLog(`Realtime status: ${isRealtimeConnected ? 'CONNECTED' : 'DISCONNECTED'}`);
+  }, [isRealtimeConnected]);
+
   const formatTime = (timestamp: string) => {
     if (timestamp === '-') return '-';
     try {
@@ -138,16 +193,34 @@ export default function DebugNetworkBanner() {
       </View>
       
       <View style={styles.row}>
-        <Text style={styles.label}>Health URL:</Text>
+        <Text style={styles.label}>Session:</Text>
+        <Text style={styles.value} numberOfLines={1}>{realtimeService.session?.slice(-8) || 'None'}</Text>
+        
+        <Text style={styles.label}>Room:</Text>
+        <Text style={styles.value} numberOfLines={1}>{realtimeService.currentRoom?.slice(-8) || 'None'}</Text>
+      </View>
+      
+      <View style={styles.row}>
+        <Text style={styles.label}>Health:</Text>
         <Text style={styles.value} numberOfLines={1}>{HEALTH_CHECK_URL}</Text>
       </View>
       
-      {debugInfo.logs.length > 0 && (
+      <View style={styles.row}>
+        <Text style={styles.label}>WebSocket:</Text>
+        <Text style={styles.value} numberOfLines={1}>{WSS_URL}</Text>
+      </View>
+      
+      {(debugInfo.logs.length > 0 || debugInfo.wsEvents.length > 0) && (
         <View style={styles.logsContainer}>
-          <Text style={styles.logsTitle}>Recent Logs:</Text>
-          {debugInfo.logs.slice(0, 2).map((log, index) => (
+          <Text style={styles.logsTitle}>Recent Activity:</Text>
+          {debugInfo.wsEvents.slice(0, 1).map((event, index) => (
+            <Text key={`ws-${index}-${event.substring(0, 10)}`} style={[styles.logEntry, styles.wsEvent]} numberOfLines={1}>
+              🔗 {event}
+            </Text>
+          ))}
+          {debugInfo.logs.slice(0, 1).map((log, index) => (
             <Text key={`log-${index}-${log.substring(0, 10)}`} style={styles.logEntry} numberOfLines={1}>
-              {log}
+              📡 {log}
             </Text>
           ))}
         </View>
@@ -202,5 +275,9 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     opacity: 0.9,
+  },
+  wsEvent: {
+    color: '#90EE90',
+    fontWeight: '600',
   },
 });

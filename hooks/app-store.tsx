@@ -3,11 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { User, Space, Item, Proposal, Category, Room, Notification } from '@/types';
 import { generateSpaceCode } from '@/utils/code-generator';
-import { detectCategory, getDefaultRooms } from '@/utils/categories';
+import { getDefaultRooms } from '@/utils/categories';
 import { ColorScheme, LightColors, DarkColors } from '@/constants/colors';
 import { useColorScheme } from 'react-native';
 import { startConnectivityLoop } from '@/utils/net/ConnectivityStabilizer';
-import realtimeService, { RoomPresence } from '@/utils/net/RealtimeService';
+import { realtimeService, RoomPresence } from '@/utils/net/RealtimeService';
 
 interface SpaceData {
   items: Item[];
@@ -65,8 +65,13 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   // Real-time WebSocket connection management
   const connectToRealtime = useCallback(async () => {
-    if (!state.currentUser || !state.isOnline) {
-      console.log('[REALTIME] Cannot connect - no user or offline');
+    if (!state.currentUser) {
+      console.log('[REALTIME] Cannot connect - no user');
+      return;
+    }
+
+    if (!state.isOnline) {
+      console.log('[REALTIME] Cannot connect - stabilizer reports offline');
       return;
     }
 
@@ -81,6 +86,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       }));
 
       if (connected && state.currentSpace) {
+        console.log('[REALTIME] Auto-joining current space after connection');
         realtimeService.joinRoom(state.currentSpace.id, {
           id: state.currentUser.id,
           name: state.currentUser.name,
@@ -183,12 +189,14 @@ export const [AppProvider, useApp] = createContextHook(() => {
         };
         
         if (online && wasOffline) {
+          console.log('[APP-STORE] Came back online, will attempt realtime connection');
           setTimeout(() => {
-            console.log('[APP-STORE] Triggering realtime connection after coming back online...');
-            if (prev.currentSpace && prev.currentUser) {
-              connectToRealtime();
-            }
+            console.log('[APP-STORE] Triggering realtime connection after stabilizer confirmed online...');
+            connectToRealtime();
           }, 1000);
+        } else if (!online && !wasOffline) {
+          console.log('[APP-STORE] Went offline, disconnecting realtime');
+          realtimeService.disconnect();
         }
         
         return newState;
@@ -198,23 +206,27 @@ export const [AppProvider, useApp] = createContextHook(() => {
     return cleanup;
   }, [connectToRealtime]);
 
-  // Connect to realtime when user signs in
+  // Connect to realtime when user signs in and stabilizer confirms online
   useEffect(() => {
     if (state.currentUser && state.isOnline && !state.isLoading) {
+      console.log('[APP-STORE] User signed in and online, connecting to realtime');
       connectToRealtime();
+    } else if (!state.isOnline && state.isRealtimeConnected) {
+      console.log('[APP-STORE] Stabilizer reports offline, disconnecting realtime');
+      realtimeService.disconnect();
     }
-  }, [state.currentUser, state.isOnline, state.isLoading, connectToRealtime]);
+  }, [state.currentUser, state.isOnline, state.isLoading, connectToRealtime, state.isRealtimeConnected]);
 
   // Handle space switching for realtime
   useEffect(() => {
-    if (state.currentSpace && state.currentUser && state.isRealtimeConnected) {
+    if (state.currentSpace && state.currentUser && state.isRealtimeConnected && state.isOnline) {
       console.log('[REALTIME] Switching to space:', state.currentSpace.id);
       realtimeService.joinRoom(state.currentSpace.id, {
         id: state.currentUser.id,
         name: state.currentUser.name,
       });
     }
-  }, [state.currentSpace, state.currentUser, state.isRealtimeConnected]);
+  }, [state.currentSpace, state.currentUser, state.isRealtimeConnected, state.isOnline]);
 
   const saveState = useCallback(async () => {
     try {
@@ -323,7 +335,14 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   // Real-time sync with WebSocket
   const syncWithRealtime = useCallback(() => {
-    if (!state.currentSpace || !state.isRealtimeConnected) return;
+    if (!state.currentSpace || !state.isRealtimeConnected || !state.isOnline) {
+      console.log('[REALTIME] Cannot sync - missing requirements:', {
+        hasSpace: !!state.currentSpace,
+        isRealtimeConnected: state.isRealtimeConnected,
+        isOnline: state.isOnline,
+      });
+      return;
+    }
     
     console.log('[REALTIME] Broadcasting state change...');
     
@@ -340,7 +359,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       ...prev,
       lastSyncTime: Date.now(),
     }));
-  }, [state.currentSpace, state.spaceData, state.isRealtimeConnected]);
+  }, [state.currentSpace, state.spaceData, state.isRealtimeConnected, state.isOnline]);
 
   // Space functions
   const createSpace = useCallback((name: string) => {
@@ -437,16 +456,20 @@ export const [AppProvider, useApp] = createContextHook(() => {
         message: `Du bist dem Space "${mockSpace.name}" beigetreten!`,
       });
       
-      // Trigger realtime sync after joining
+      // Trigger realtime connection and sync after joining
       setTimeout(() => {
-        syncWithRealtime();
+        if (state.isOnline) {
+          connectToRealtime().then(() => {
+            setTimeout(() => syncWithRealtime(), 500);
+          });
+        }
       }, 500);
       
       return true;
     }
     
     return false;
-  }, [state.currentUser, addNotification, syncWithRealtime]);
+  }, [state.currentUser, state.isOnline, addNotification, connectToRealtime, syncWithRealtime]);
 
   // Helper to get current space data
   const getCurrentSpaceData = useCallback((): SpaceData => {

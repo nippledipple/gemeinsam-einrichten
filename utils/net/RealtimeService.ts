@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { API_CONFIG } from '@/constants/config';
+import { WS_CONFIG, WSS_URL } from '@/constants/config';
 
 interface RoomPresence {
   count: number;
@@ -58,16 +58,14 @@ class RealtimeService {
       console.log('[REALTIME] Connecting to WebSocket server...');
 
       try {
-        // WebSocket URL - replace with your actual WebSocket endpoint
-        const wsUrl = API_CONFIG.BASE_URL.replace('https://', 'wss://').replace('http://', 'ws://') + '/realtime';
-        
-        this.socket = io(wsUrl, {
+        this.socket = io(WSS_URL, {
           transports: ['websocket'],
           timeout: 5000,
           reconnection: true,
-          reconnectionAttempts: this.maxReconnectAttempts,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
+          reconnectionAttempts: WS_CONFIG.MAX_RECONNECTION_ATTEMPTS,
+          reconnectionDelay: WS_CONFIG.RECONNECTION_DELAY,
+          reconnectionDelayMax: WS_CONFIG.RECONNECTION_DELAY_MAX,
+          path: '/realtime',
         });
 
         this.socket.on('connect', () => {
@@ -209,10 +207,12 @@ class RealtimeService {
     console.log('[REALTIME] Sending state patch:', { spaceId, patch });
     
     this.socket.emit('state:patch', {
+      op: 'patch',
+      payload: patch,
       spaceId,
-      patch,
       sessionId: this.sessionId,
-      timestamp: Date.now()
+      updatedAt: new Date().toISOString(),
+      actorId: this.sessionId,
     });
   }
 
@@ -221,9 +221,10 @@ class RealtimeService {
     
     this.heartbeatInterval = setInterval(() => {
       if (this.socket?.connected) {
+        console.log('[REALTIME] Sending heartbeat ping');
         this.socket.emit('presence:ping');
       }
-    }, 20000); // Ping every 20 seconds
+    }, WS_CONFIG.HEARTBEAT_INTERVAL);
   }
 
   private stopHeartbeat() {
