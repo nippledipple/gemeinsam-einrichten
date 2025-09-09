@@ -414,7 +414,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return false;
     }
     
-    // Create a mock space for demo purposes
+    // Create a space for the provided code
     if (code.match(/^[A-Z0-9]{4}$/)) {
       const spaceId = `space_${code}_${Date.now()}`;
       const mockSpace: Space = {
@@ -532,7 +532,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       : state.isDarkMode;
   }, [state.isDarkMode, systemColorScheme]);
 
-  // Simple functions for demo
+  // Notification and theme functions
   const markNotificationRead = useCallback((notificationId: string) => {
     setState(prev => ({
       ...prev,

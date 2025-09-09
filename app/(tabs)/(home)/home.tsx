@@ -34,7 +34,7 @@ export default function HomeScreen() {
     router.push('/(tabs)/search');
   };
 
-  // Use real-time participant count if available, fallback to space members
+  // Use real-time participant count or space member count
   const realtimeParticipants = currentSpacePresence?.count || 0;
   const spaceMemberCount = currentSpace?.members?.length || 1;
   const participantCount = realtimeParticipants > 0 ? realtimeParticipants : spaceMemberCount;

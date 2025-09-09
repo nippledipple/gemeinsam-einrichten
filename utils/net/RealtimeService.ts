@@ -63,7 +63,7 @@ class RealtimeService {
           reconnectionDelay: WS_CONFIG.RECONNECTION_DELAY,
           reconnectionDelayMax: WS_CONFIG.RECONNECTION_DELAY_MAX,
           reconnectionAttempts: WS_CONFIG.MAX_RECONNECTION_ATTEMPTS,
-          timeout: 20000,
+          timeout: 8000,
         });
 
         this.socket.on('connect', () => {
