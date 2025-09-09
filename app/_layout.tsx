@@ -6,6 +6,7 @@ import { View, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AppProvider } from "@/hooks/app-store";
 import DebugNetworkBanner from "@/components/DebugNetworkBanner";
+import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,16 +28,18 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <GestureHandlerRootView style={styles.container}>
-          <View style={styles.container}>
-            <DebugNetworkBanner />
-            <RootLayoutNav />
-          </View>
-        </GestureHandlerRootView>
-      </AppProvider>
-    </QueryClientProvider>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <AppProvider>
+          <GestureHandlerRootView style={styles.container}>
+            <View style={styles.container}>
+              <DebugNetworkBanner />
+              <RootLayoutNav />
+            </View>
+          </GestureHandlerRootView>
+        </AppProvider>
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }
 
