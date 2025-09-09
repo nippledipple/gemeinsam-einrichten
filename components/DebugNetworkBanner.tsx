@@ -15,7 +15,7 @@ interface NetworkDebugInfo {
 }
 
 export default function DebugNetworkBanner() {
-  const { isOnline, lastSyncTime } = useApp();
+  const { isOnline, lastSyncTime, isRealtimeConnected, currentSpacePresence } = useApp();
   const [debugInfo, setDebugInfo] = useState<NetworkDebugInfo>({
     pingResult: null,
     lastPingTime: '-',
@@ -116,6 +116,9 @@ export default function DebugNetworkBanner() {
         
         <Text style={styles.label}>Online:</Text>
         <Text style={styles.value}>{isOnline ? 'true' : 'false'} (stable)</Text>
+        
+        <Text style={styles.label}>WS:</Text>
+        <Text style={styles.value}>{isRealtimeConnected ? 'connected' : 'disconnected'}</Text>
       </View>
       
       <View style={styles.row}>
@@ -129,6 +132,9 @@ export default function DebugNetworkBanner() {
         <Text style={styles.value}>
           {lastSyncTime ? formatTime(new Date(lastSyncTime).toISOString()) : 'Never'}
         </Text>
+        
+        <Text style={styles.label}>Participants:</Text>
+        <Text style={styles.value}>{currentSpacePresence?.count || 0}</Text>
       </View>
       
       <View style={styles.row}>
