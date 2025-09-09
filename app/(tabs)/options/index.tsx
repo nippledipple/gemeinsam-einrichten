@@ -238,7 +238,7 @@ export default function OptionsScreen() {
           <OptionItem
             icon={<RefreshCw size={24} color={colors.primary} />}
             title="Spaces verwalten"
-            subtitle={`${(allSpaces || []).length} Space${(allSpaces || []).length !== 1 ? 's' : ''} verwalten`}
+            subtitle={`${(allSpaces || []).length} Space${(allSpaces || []).length !== 1 ? 's' : ''} • ${currentSpace?.members?.length || 1} Teilnehmer im aktuellen Space`}
             onPress={handleManageSpaces}
           />
         </View>

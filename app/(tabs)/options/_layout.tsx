@@ -20,7 +20,7 @@ export default function OptionsLayout() {
         name="index" 
         options={{ 
           title: 'Mehr Optionen',
-          headerLargeTitle: true,
+          headerLargeTitle: false,
         }} 
       />
       <Stack.Screen 

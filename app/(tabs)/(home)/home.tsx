@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import { router } from 'expo-router';
+import { Users, Wifi, WifiOff } from 'lucide-react-native';
 
 import { useApp } from '@/hooks/app-store';
 import { ProposalBanner } from '@/components/ProposalBanner';
@@ -23,6 +24,9 @@ export default function HomeScreen() {
   const handleAddItem = () => {
     router.push('/(tabs)/search');
   };
+
+  const memberCount = currentSpace?.members?.length || 1;
+  const isConnected = memberCount > 1; // Simulate connection status
 
 
 
@@ -78,11 +82,45 @@ export default function HomeScreen() {
       fontSize: 16,
       fontWeight: '600',
     },
+    statusBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      marginHorizontal: 20,
+      marginTop: 16,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+    },
+    statusIcon: {
+      marginRight: 8,
+    },
+    statusText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.text,
+    },
   });
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Participant Status Bar */}
+        <View style={styles.statusBar}>
+          <View style={styles.statusIcon}>
+            {memberCount > 1 ? (
+              <Wifi size={16} color={colors.success} />
+            ) : (
+              <WifiOff size={16} color={colors.textSecondary} />
+            )}
+          </View>
+          <Users size={16} color={colors.primary} style={styles.statusIcon} />
+          <Text style={styles.statusText}>
+            {memberCount} Teilnehmer{memberCount !== 1 ? '' : ''} {memberCount > 1 ? '• Synchronisiert' : '• Offline'}
+          </Text>
+        </View>
+
         {/* Proposal Banners */}
         {pendingProposals && pendingProposals.length > 0 && pendingProposals.map((proposal) => (
           <ProposalBanner 

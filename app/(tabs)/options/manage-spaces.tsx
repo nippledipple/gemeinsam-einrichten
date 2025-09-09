@@ -122,7 +122,7 @@ export default function ManageSpacesScreen() {
                       </View>
                       
                       <Text style={[styles.spaceMembers, { color: colors.textSecondary }]}>
-                        {memberCount} Mitglied{memberCount !== 1 ? 'er' : ''}
+                        {memberCount} Teilnehmer{memberCount !== 1 ? '' : ''} • {memberCount > 1 ? 'Aktiv' : 'Allein'}
                       </Text>
                       
                       <Text style={[styles.spaceDate, { color: colors.textSecondary }]}>
