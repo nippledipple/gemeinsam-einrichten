@@ -535,9 +535,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
       ...prev,
       currentSpace: prev.currentSpace ? {
         ...prev.currentSpace,
-        pendingInvites: (prev.currentSpace.pendingInvites || []).filter(invite => 
+        pendingInvites: (prev.currentSpace?.pendingInvites || []).filter(invite => 
           Date.now() < invite.expiry
-        ) || [],
+        ),
       } : null,
     }));
   }, []);
@@ -581,7 +581,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       currentSpace: prev.currentSpace ? {
         ...prev.currentSpace,
         pendingInvites: [
-          ...((prev.currentSpace && prev.currentSpace.pendingInvites) || []),
+          ...(prev.currentSpace?.pendingInvites || []),
           {
             email,
             code: inviteCode,
