@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useApp } from '@/hooks/app-store';
+import { pingOnce } from '@/utils/net/Pinger';
 
 interface NetworkDebugInfo {
   pingResult: boolean | null;
@@ -34,62 +35,6 @@ export default function DebugNetworkBanner() {
     }));
   };
 
-  const performPing = useCallback(async () => {
-    try {
-      addLog('Starting ping test...');
-      
-      // Test multiple endpoints for reliability
-      const endpoints = [
-        'https://clients3.google.com/generate_204',
-        'https://www.google.com/favicon.ico',
-        'https://httpbin.org/status/200'
-      ];
-      
-      let pingSuccess = false;
-      
-      for (const endpoint of endpoints) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-          
-          const response = await fetch(endpoint, {
-            method: 'GET',
-            signal: controller.signal,
-            cache: 'no-cache',
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (response.ok || response.status === 204) {
-            pingSuccess = true;
-            addLog(`Ping SUCCESS to ${endpoint}`);
-            break;
-          } else {
-            addLog(`Ping FAILED to ${endpoint} (${response.status})`);
-          }
-        } catch (error: any) {
-          addLog(`Ping ERROR to ${endpoint}: ${error.message}`);
-        }
-      }
-      
-      setDebugInfo(prev => ({
-        ...prev,
-        pingResult: pingSuccess,
-        lastPingTime: new Date().toISOString(),
-      }));
-      
-      addLog(`Overall ping result: ${pingSuccess ? 'SUCCESS' : 'FAILED'}`);
-      
-    } catch (error: any) {
-      addLog(`Ping test failed: ${error.message}`);
-      setDebugInfo(prev => ({
-        ...prev,
-        pingResult: false,
-        lastPingTime: new Date().toISOString(),
-      }));
-    }
-  }, []);
-
   // Monitor NetInfo changes
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
@@ -118,12 +63,22 @@ export default function DebugNetworkBanner() {
     return unsubscribe;
   }, []);
 
-  // Perform ping test every 10 seconds
+  // Perform ping test using centralized pinger
   useEffect(() => {
+    const performPing = async () => {
+      const result = await pingOnce(3000);
+      setDebugInfo(prev => ({
+        ...prev,
+        pingResult: result,
+        lastPingTime: new Date().toISOString(),
+      }));
+      addLog(`Ping result: ${result ? 'SUCCESS' : 'FAILED'}`);
+    };
+
     performPing(); // Initial ping
-    const interval = setInterval(performPing, 10000);
+    const interval = setInterval(performPing, 5000); // Match stabilizer interval
     return () => clearInterval(interval);
-  }, [performPing]);
+  }, []);
 
   // Log app online status changes
   useEffect(() => {
@@ -153,13 +108,13 @@ export default function DebugNetworkBanner() {
         <Text style={styles.label}>Ping:</Text>
         <Text style={styles.value}>{String(debugInfo.pingResult)}</Text>
         
-        <Text style={styles.label}>App:</Text>
-        <Text style={styles.value}>{isOnline ? 'ONLINE' : 'OFFLINE'}</Text>
-        
         <Text style={styles.label}>NetInfo:</Text>
         <Text style={styles.value}>
           {debugInfo.netInfoConnected}/{debugInfo.netInfoReachable}
         </Text>
+        
+        <Text style={styles.label}>Online:</Text>
+        <Text style={styles.value}>{isOnline ? 'true' : 'false'} (stable)</Text>
       </View>
       
       <View style={styles.row}>

@@ -6,7 +6,7 @@ import { generateSpaceCode } from '@/utils/code-generator';
 import { detectCategory, getDefaultRooms } from '@/utils/categories';
 import { ColorScheme, LightColors, DarkColors } from '@/constants/colors';
 import { useColorScheme } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
+import { startConnectivityLoop } from '@/utils/net/ConnectivityStabilizer';
 
 interface SpaceData {
   items: Item[];
@@ -43,41 +43,31 @@ export const [AppProvider, useApp] = createContextHook(() => {
     lastSyncTime: null,
   });
 
-  // Load persisted state and setup network monitoring
+  // Load persisted state and setup stabilized network monitoring
   useEffect(() => {
     loadState();
     
-    // Setup network monitoring with improved logic
-    const unsubscribe = NetInfo.addEventListener(networkState => {
-      console.log('[APP-STORE] Network state changed:', {
-        isConnected: networkState.isConnected,
-        isInternetReachable: networkState.isInternetReachable,
-        type: networkState.type,
-        details: networkState.details
-      });
-      
-      // More permissive connection logic - if we have any connection, assume online
-      // This prevents false offline states due to NetInfo quirks
-      const isConnected = networkState.isConnected === true;
+    // Setup stabilized connectivity monitoring
+    const cleanup = startConnectivityLoop((online: boolean) => {
+      console.log('[APP-STORE] Stable connectivity change:', { online });
       
       setState(prev => {
         const wasOffline = !prev.isOnline;
-        const newOnlineState = Boolean(isConnected);
         
         console.log('[APP-STORE] Connection state update:', {
           wasOffline,
-          newOnlineState,
+          newOnlineState: online,
           hasCurrentSpace: !!prev.currentSpace
         });
         
         const newState = {
           ...prev,
-          isOnline: newOnlineState,
-          lastSyncTime: isConnected ? Date.now() : prev.lastSyncTime,
+          isOnline: online,
+          lastSyncTime: online ? Date.now() : prev.lastSyncTime,
         };
         
         // If we just came back online, trigger sync
-        if (isConnected && wasOffline && prev.currentSpace) {
+        if (online && wasOffline && prev.currentSpace) {
           setTimeout(() => {
             console.log('[APP-STORE] Triggering sync after coming back online...');
           }, 1000);
@@ -87,36 +77,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       });
     });
     
-    // Get initial network state with better error handling
-    NetInfo.fetch()
-      .then(networkState => {
-        console.log('[APP-STORE] Initial network state:', {
-          isConnected: networkState.isConnected,
-          isInternetReachable: networkState.isInternetReachable,
-          type: networkState.type
-        });
-        
-        const isConnected = networkState.isConnected === true;
-        
-        setState(prev => ({
-          ...prev,
-          isOnline: Boolean(isConnected),
-          lastSyncTime: isConnected ? Date.now() : prev.lastSyncTime,
-        }));
-      })
-      .catch(error => {
-        console.error('[APP-STORE] Failed to fetch initial network state:', error);
-        // If NetInfo fails, assume we're online to prevent false offline states
-        setState(prev => ({
-          ...prev,
-          isOnline: true,
-          lastSyncTime: Date.now(),
-        }));
-      });
-    
-    return () => {
-      unsubscribe();
-    };
+    return cleanup;
   }, []);
 
   const saveState = useCallback(async () => {
