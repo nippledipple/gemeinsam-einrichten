@@ -53,3 +53,8 @@ export const defaultRooms: Room[] = [
   { id: 'office', name: 'Büro', budget: 1000, spent: 0, color: Colors.rooms.office, icon: 'briefcase' },
   { id: 'balcony', name: 'Balkon', budget: 500, spent: 0, color: Colors.rooms.balcony, icon: 'sun' },
 ];
+
+// Helper function to get a safe copy of default rooms
+export function getDefaultRooms(): Room[] {
+  return defaultRooms.map(room => ({ ...room }));
+}

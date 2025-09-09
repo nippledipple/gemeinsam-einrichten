@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { User, Space, Item, Proposal, Category, Room, Notification } from '@/types';
 import { generateSpaceCode } from '@/utils/code-generator';
-import { detectCategory, defaultRooms } from '@/utils/categories';
+import { detectCategory, getDefaultRooms } from '@/utils/categories';
 import { ColorScheme, LightColors, DarkColors } from '@/constants/colors';
 import { useColorScheme } from 'react-native';
 
@@ -53,9 +53,23 @@ export const [AppProvider, useApp] = createContextHook(() => {
         notifications: state.notifications || [],
         isDarkMode: state.isDarkMode,
       };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      
+      // Validate data before saving
+      const jsonString = JSON.stringify(toSave);
+      if (jsonString.length > 0) {
+        await AsyncStorage.setItem(STORAGE_KEY, jsonString);
+        console.log('State saved successfully');
+      } else {
+        console.error('Empty JSON string, not saving');
+      }
     } catch (error) {
       console.error('Failed to save state:', error);
+      // If save fails, try to clear corrupted storage
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+      } catch (clearError) {
+        console.error('Failed to clear storage after save error:', clearError);
+      }
     }
   }, [state]);
 
@@ -70,14 +84,43 @@ export const [AppProvider, useApp] = createContextHook(() => {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        console.log('Loading stored data:', stored.substring(0, 100) + '...');
+        
+        // Check if stored data is valid JSON
+        if (stored.trim().length === 0) {
+          console.log('Empty stored data, clearing storage');
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setState(prev => ({ ...prev, isLoading: false }));
+          return;
+        }
+        
+        // Try to parse JSON with better error handling
+        let parsed;
+        try {
+          parsed = JSON.parse(stored);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          console.log('Corrupted data, clearing storage');
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setState(prev => ({ ...prev, isLoading: false }));
+          return;
+        }
+        
+        // Validate parsed data structure
+        if (typeof parsed !== 'object' || parsed === null) {
+          console.log('Invalid data structure, clearing storage');
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setState(prev => ({ ...prev, isLoading: false }));
+          return;
+        }
+        
         setState(prev => ({
           ...prev,
           currentUser: parsed.currentUser || null,
           currentSpace: parsed.currentSpace || null,
-          allSpaces: parsed.allSpaces || [],
-          spaceData: parsed.spaceData || {},
-          notifications: parsed.notifications || [],
+          allSpaces: Array.isArray(parsed.allSpaces) ? parsed.allSpaces : [],
+          spaceData: (typeof parsed.spaceData === 'object' && parsed.spaceData !== null) ? parsed.spaceData : {},
+          notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
           isDarkMode: parsed.isDarkMode || null,
           isLoading: false,
         }));
@@ -86,6 +129,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
       }
     } catch (error) {
       console.error('Failed to load state:', error);
+      // Clear corrupted storage
+      try {
+        await AsyncStorage.removeItem(STORAGE_KEY);
+      } catch (clearError) {
+        console.error('Failed to clear storage:', clearError);
+      }
       setState(prev => ({ ...prev, isLoading: false }));
     }
   };
@@ -156,7 +205,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       items: [],
       proposals: [],
       categories: [],
-      rooms: [...defaultRooms], // Create a copy to avoid reference issues
+      rooms: getDefaultRooms(), // Create a safe copy to avoid reference issues
     };
     
     setState(prev => ({ 
@@ -257,7 +306,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
             items: [],
             proposals: [],
             categories: [],
-            rooms: [...defaultRooms],
+            rooms: getDefaultRooms(),
           };
           
           return {
@@ -323,7 +372,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
               items: [],
               proposals: [],
               categories: [],
-              rooms: [...defaultRooms],
+              rooms: getDefaultRooms(),
             };
             
             // Update both allSpaces and currentSpace
@@ -368,7 +417,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         items: [],
         proposals: [],
         categories: [],
-        rooms: defaultRooms,
+        rooms: getDefaultRooms(),
       };
       
       // Check if we already have a space with this code pattern
@@ -410,14 +459,14 @@ export const [AppProvider, useApp] = createContextHook(() => {
   // Helper to get current space data
   const getCurrentSpaceData = useCallback((): SpaceData => {
     if (!state.currentSpace) {
-      return { items: [], proposals: [], categories: [], rooms: [...defaultRooms] };
+      return { items: [], proposals: [], categories: [], rooms: getDefaultRooms() };
     }
     const data = state.spaceData?.[state.currentSpace.id];
     return {
-      items: data?.items || [],
-      proposals: data?.proposals || [],
-      categories: data?.categories || [],
-      rooms: data?.rooms || [...defaultRooms],
+      items: Array.isArray(data?.items) ? data.items : [],
+      proposals: Array.isArray(data?.proposals) ? data.proposals : [],
+      categories: Array.isArray(data?.categories) ? data.categories : [],
+      rooms: Array.isArray(data?.rooms) ? data.rooms : getDefaultRooms(),
     };
   }, [state.currentSpace, state.spaceData]);
 
@@ -487,7 +536,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData?.[spaceId] || { items: [], proposals: [], categories: [], rooms: [...defaultRooms] };
+      const currentData = prev.spaceData?.[spaceId] || { items: [], proposals: [], categories: [], rooms: getDefaultRooms() };
       
       const updatedCategories = (currentData.categories || []).find(c => c.id === category!.id)
         ? (currentData.categories || []).map(c => 
@@ -808,7 +857,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           items: [],
           proposals: [],
           categories: [],
-          rooms: [...defaultRooms],
+          rooms: getDefaultRooms(),
         };
         
         return {
