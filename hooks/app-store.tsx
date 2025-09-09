@@ -48,9 +48,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
       const toSave = {
         currentUser: state.currentUser,
         currentSpace: state.currentSpace,
-        allSpaces: state.allSpaces,
-        spaceData: state.spaceData,
-        notifications: state.notifications,
+        allSpaces: state.allSpaces || [],
+        spaceData: state.spaceData || {},
+        notifications: state.notifications || [],
         isDarkMode: state.isDarkMode,
       };
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -73,7 +73,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
         const parsed = JSON.parse(stored);
         setState(prev => ({
           ...prev,
-          ...(parsed || {}),
+          currentUser: parsed.currentUser || null,
+          currentSpace: parsed.currentSpace || null,
+          allSpaces: parsed.allSpaces || [],
+          spaceData: parsed.spaceData || {},
+          notifications: parsed.notifications || [],
+          isDarkMode: parsed.isDarkMode || null,
           isLoading: false,
         }));
       } else {
@@ -178,6 +183,13 @@ export const [AppProvider, useApp] = createContextHook(() => {
         code,
         codeExpiry: expiry,
       } : null,
+      allSpaces: (prev.allSpaces || []).map(s => 
+        s.id === prev.currentSpace?.id ? {
+          ...s,
+          code,
+          codeExpiry: expiry,
+        } : s
+      ),
     }));
     
     return code;
@@ -241,11 +253,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
         
         setState(prev => {
           // Initialize space data if it doesn't exist
-          const spaceData = prev.spaceData[space.id] || {
+          const spaceData = prev.spaceData?.[space.id] || {
             items: [],
             proposals: [],
             categories: [],
-            rooms: defaultRooms,
+            rooms: [...defaultRooms],
           };
           
           return {
@@ -307,20 +319,21 @@ export const [AppProvider, useApp] = createContextHook(() => {
           
           setState(prev => {
             // Initialize space data if it doesn't exist
-            const spaceData = prev.spaceData[space.id] || {
+            const spaceData = prev.spaceData?.[space.id] || {
               items: [],
               proposals: [],
               categories: [],
-              rooms: defaultRooms,
+              rooms: [...defaultRooms],
             };
             
             // Update both allSpaces and currentSpace
             const updatedAllSpaces = (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s);
+            const hasSpace = updatedAllSpaces.some(s => s.id === space.id);
             
             return {
               ...prev,
               currentSpace: updatedSpace,
-              allSpaces: updatedAllSpaces.includes(updatedSpace) ? updatedAllSpaces : [...updatedAllSpaces, updatedSpace],
+              allSpaces: hasSpace ? updatedAllSpaces : [...updatedAllSpaces, updatedSpace],
               spaceData: {
                 ...(prev.spaceData || {}),
                 [space.id]: spaceData,
@@ -399,7 +412,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     if (!state.currentSpace) {
       return { items: [], proposals: [], categories: [], rooms: [...defaultRooms] };
     }
-    const data = state.spaceData[state.currentSpace.id];
+    const data = state.spaceData?.[state.currentSpace.id];
     return {
       items: data?.items || [],
       proposals: data?.proposals || [],
@@ -455,12 +468,29 @@ export const [AppProvider, useApp] = createContextHook(() => {
       updatedAt: Date.now(),
     };
     
+    // Create proposal if needed
+    let proposal: Proposal | null = null;
+    if (asProposal && state.currentSpace && state.currentSpace.members.length > 1) {
+      const otherMember = state.currentSpace.members.find(m => m.id !== state.currentUser!.id);
+      if (otherMember) {
+        proposal = {
+          id: `proposal_${Date.now()}`,
+          itemId: item.id,
+          item: item,
+          proposedBy: state.currentUser.id,
+          proposedTo: otherMember.id,
+          status: 'pending',
+          createdAt: Date.now(),
+        };
+      }
+    }
+    
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId] || { items: [], proposals: [], categories: [], rooms: defaultRooms };
+      const currentData = prev.spaceData?.[spaceId] || { items: [], proposals: [], categories: [], rooms: [...defaultRooms] };
       
-      const updatedCategories = currentData.categories.find(c => c.id === category!.id)
-        ? currentData.categories.map(c => 
+      const updatedCategories = (currentData.categories || []).find(c => c.id === category!.id)
+        ? (currentData.categories || []).map(c => 
             c.id === category!.id 
               ? { ...c, itemCount: c.itemCount + 1 }
               : c
@@ -475,6 +505,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
             ...currentData,
             items: [...(currentData.items || []), item],
             categories: updatedCategories,
+            proposals: proposal ? [...(currentData.proposals || []), proposal] : (currentData.proposals || []),
           },
         },
       };
@@ -488,7 +519,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId];
+      const currentData = prev.spaceData?.[spaceId];
       if (!currentData) return prev;
       
       const item = (currentData.items || []).find(i => i.id === itemId);
@@ -524,15 +555,15 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId];
+      const currentData = prev.spaceData?.[spaceId];
       if (!currentData) return prev;
       
       // Remove all items in this room
-      const updatedItems = currentData.items.filter(i => i.roomId !== roomId);
+      const updatedItems = (currentData.items || []).filter(i => i.roomId !== roomId);
       // Remove all categories in this room
-      const updatedCategories = currentData.categories.filter(c => c.roomId !== roomId);
+      const updatedCategories = (currentData.categories || []).filter(c => c.roomId !== roomId);
       // Remove the room
-      const updatedRooms = currentData.rooms.filter(r => r.id !== roomId);
+      const updatedRooms = (currentData.rooms || []).filter(r => r.id !== roomId);
       
       return {
         ...prev,
@@ -554,27 +585,27 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId];
+      const currentData = prev.spaceData?.[spaceId];
       if (!currentData) return prev;
       
-      const proposal = currentData.proposals.find(p => p.id === proposalId);
+      const proposal = (currentData.proposals || []).find(p => p.id === proposalId);
       if (!proposal) return prev;
       
-      const updatedProposals = currentData.proposals.map(p => 
+      const updatedProposals = (currentData.proposals || []).map(p => 
         p.id === proposalId 
           ? { ...p, status: response, respondedAt: Date.now() }
           : p
       );
       
       const updatedItems = response === 'accepted' 
-        ? currentData.items.map(i => 
+        ? (currentData.items || []).map(i => 
             i.id === proposal.itemId 
               ? { ...i, status: 'accepted' as const, updatedAt: Date.now() }
               : i
           )
         : response === 'rejected'
-        ? currentData.items.filter(i => i.id !== proposal.itemId)
-        : currentData.items;
+        ? (currentData.items || []).filter(i => i.id !== proposal.itemId)
+        : currentData.items || [];
       
       return {
         ...prev,
@@ -603,18 +634,18 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId];
+      const currentData = prev.spaceData?.[spaceId];
       if (!currentData) return prev;
       
-      const priorityItems = currentData.items.filter(i => i.isPriority);
-      const item = currentData.items.find(i => i.id === itemId);
+      const priorityItems = (currentData.items || []).filter(i => i.isPriority);
+      const item = (currentData.items || []).find(i => i.id === itemId);
       
       if (!item) return prev;
       
       let updatedItems;
       if (item.isPriority) {
         // Remove from priority
-        updatedItems = currentData.items.map(i => 
+        updatedItems = (currentData.items || []).map(i => 
           i.id === itemId 
             ? { ...i, isPriority: false, priorityLevel: undefined }
             : i.priorityLevel && i.priorityLevel > (item.priorityLevel || 0)
@@ -623,7 +654,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         );
       } else if (priorityItems.length < 5) {
         // Add to priority
-        updatedItems = currentData.items.map(i => 
+        updatedItems = (currentData.items || []).map(i => 
           i.id === itemId 
             ? { ...i, isPriority: true, priorityLevel: priorityItems.length + 1 }
             : i
@@ -650,10 +681,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId];
+      const currentData = prev.spaceData?.[spaceId];
       if (!currentData) return prev;
       
-      const updatedItems = currentData.items.map(i => 
+      const updatedItems = (currentData.items || []).map(i => 
         i.id === itemId 
           ? { ...i, isFavorite: !i.isFavorite }
           : i
@@ -677,10 +708,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId];
+      const currentData = prev.spaceData?.[spaceId];
       if (!currentData) return prev;
       
-      const updatedRooms = currentData.rooms.map(r => 
+      const updatedRooms = (currentData.rooms || []).map(r => 
         r.id === roomId 
           ? { ...r, budget }
           : r
@@ -731,7 +762,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const spaceId = prev.currentSpace!.id;
-      const currentData = prev.spaceData[spaceId];
+      const currentData = prev.spaceData?.[spaceId];
       if (!currentData) return prev;
       
       return {
@@ -773,11 +804,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
     if (space) {
       setState(prev => {
         // Initialize space data if it doesn't exist
-        const spaceData = prev.spaceData[spaceId] || {
+        const spaceData = prev.spaceData?.[spaceId] || {
           items: [],
           proposals: [],
           categories: [],
-          rooms: defaultRooms,
+          rooms: [...defaultRooms],
         };
         
         return {
