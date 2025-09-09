@@ -20,6 +20,12 @@ app.use(
   })
 );
 
+// Health check endpoint
+app.get("/healthz", (c) => {
+  c.header("Cache-Control", "no-store");
+  return c.json({ status: "ok" });
+});
+
 // Simple health check endpoint
 app.get("/", (c) => {
   return c.json({ status: "ok", message: "API is running" });
