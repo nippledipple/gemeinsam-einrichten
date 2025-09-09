@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useApp } from '@/hooks/app-store';
 import { pingOnce } from '@/utils/net/Pinger';
-import { HEALTH_CHECK_URL, WSS_URL } from '@/constants/config';
+import { WSS_URL } from '@/constants/config';
 import { realtimeService } from '@/utils/net/RealtimeService';
 
 interface NetworkDebugInfo {
@@ -173,7 +173,7 @@ export default function DebugNetworkBanner() {
         <Text style={styles.value}>{isOnline ? 'true' : 'false'} (stable)</Text>
         
         <Text style={styles.label}>WS:</Text>
-        <Text style={styles.value}>{isRealtimeConnected ? 'connected' : 'disconnected'}</Text>
+        <Text style={styles.value}>{isRealtimeConnected ? 'connected (demo)' : 'disconnected'}</Text>
       </View>
       
       <View style={styles.row}>
@@ -189,7 +189,7 @@ export default function DebugNetworkBanner() {
         </Text>
         
         <Text style={styles.label}>Participants:</Text>
-        <Text style={styles.value}>{currentSpacePresence?.count || 0}</Text>
+        <Text style={styles.value}>{currentSpacePresence?.count || 0} (demo)</Text>
       </View>
       
       <View style={styles.row}>
@@ -201,13 +201,13 @@ export default function DebugNetworkBanner() {
       </View>
       
       <View style={styles.row}>
-        <Text style={styles.label}>Health:</Text>
-        <Text style={styles.value} numberOfLines={1}>{HEALTH_CHECK_URL}</Text>
+        <Text style={styles.label}>Ping Endpoints:</Text>
+        <Text style={styles.value} numberOfLines={1}>Apple + Google (dual)</Text>
       </View>
       
       <View style={styles.row}>
         <Text style={styles.label}>WebSocket:</Text>
-        <Text style={styles.value} numberOfLines={1}>{WSS_URL}</Text>
+        <Text style={styles.value} numberOfLines={1}>{WSS_URL} (demo)</Text>
       </View>
       
       {(debugInfo.logs.length > 0 || debugInfo.wsEvents.length > 0) && (

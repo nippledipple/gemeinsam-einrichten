@@ -1,5 +1,9 @@
-import { io, Socket } from 'socket.io-client';
 import { WS_CONFIG, WSS_URL } from '@/constants/config';
+
+// TODO: In production, switch back to Socket.IO with proper backend:
+// - Replace native WebSocket with socket.io-client
+// - Use WSS_URL = 'wss://api.rork.com/realtime'
+// - Implement proper room management and presence tracking
 
 interface RoomPresence {
   count: number;
@@ -25,7 +29,7 @@ interface RealtimeEvents {
 type EventCallback<T extends keyof RealtimeEvents> = RealtimeEvents[T];
 
 class RealtimeService {
-  private socket: Socket | null = null;
+  private socket: WebSocket | null = null;
   private currentSpaceId: string | null = null;
   private sessionId: string | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
@@ -33,6 +37,7 @@ class RealtimeService {
   private maxReconnectAttempts = 5;
   private isConnecting = false;
   private eventListeners: Map<string, Set<Function>> = new Map();
+  private demoParticipantCount = 1; // Demo counter
 
   constructor() {
     this.generateSessionId();
@@ -44,7 +49,7 @@ class RealtimeService {
 
   connect(): Promise<boolean> {
     return new Promise((resolve) => {
-      if (this.socket?.connected) {
+      if (this.socket?.readyState === WebSocket.OPEN) {
         resolve(true);
         return;
       }
@@ -55,36 +60,36 @@ class RealtimeService {
       }
 
       this.isConnecting = true;
-      console.log('[REALTIME] Connecting to WebSocket server...');
+      console.log('[REALTIME] Connecting to demo WebSocket server...');
 
       try {
-        this.socket = io(WSS_URL, {
-          transports: ['websocket'],
-          timeout: 5000,
-          reconnection: true,
-          reconnectionAttempts: WS_CONFIG.MAX_RECONNECTION_ATTEMPTS,
-          reconnectionDelay: WS_CONFIG.RECONNECTION_DELAY,
-          reconnectionDelayMax: WS_CONFIG.RECONNECTION_DELAY_MAX,
-          path: '/realtime',
-        });
+        this.socket = new WebSocket(WSS_URL);
 
-        this.socket.on('connect', () => {
-          console.log('[REALTIME] Connected to WebSocket server');
+        this.socket.onopen = () => {
+          console.log('[REALTIME] Connected to demo WebSocket server');
           this.isConnecting = false;
           this.reconnectAttempts = 0;
           this.startHeartbeat();
           this.emit('connect');
           resolve(true);
-        });
+        };
 
-        this.socket.on('disconnect', (reason) => {
-          console.log('[REALTIME] Disconnected from WebSocket server:', reason);
+        this.socket.onclose = (event) => {
+          console.log('[REALTIME] Disconnected from demo WebSocket server:', event.reason);
           this.stopHeartbeat();
           this.emit('disconnect');
-        });
+          
+          // Auto-reconnect logic
+          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            setTimeout(() => {
+              this.reconnectAttempts++;
+              this.connect();
+            }, WS_CONFIG.RECONNECTION_DELAY * Math.pow(2, this.reconnectAttempts));
+          }
+        };
 
-        this.socket.on('connect_error', (error) => {
-          console.error('[REALTIME] Connection error:', error);
+        this.socket.onerror = (error) => {
+          console.error('[REALTIME] WebSocket error:', error);
           this.isConnecting = false;
           this.reconnectAttempts++;
           
@@ -93,26 +98,34 @@ class RealtimeService {
             this.emit('error', error);
           }
           resolve(false);
-        });
+        };
 
-        // Set up event listeners
-        this.socket.on('presence:update', (data) => {
-          console.log('[REALTIME] Presence update:', data);
-          this.emit('presence:update', data);
-        });
-
-        this.socket.on('state:patch', (data) => {
-          console.log('[REALTIME] State patch received:', data);
-          this.emit('state:patch', data);
-        });
-
-        this.socket.on('state:broadcast', (data) => {
-          console.log('[REALTIME] State broadcast received:', data);
-          this.emit('state:broadcast', data);
-        });
+        this.socket.onmessage = (event) => {
+          try {
+            // Echo server just returns what we send, treat as pong
+            console.log('[REALTIME] Demo message received:', event.data);
+            
+            // Simulate presence update for demo
+            if (event.data.includes('ping')) {
+              this.emit('presence:update', {
+                spaceId: this.currentSpaceId || 'demo',
+                presence: {
+                  count: this.demoParticipantCount,
+                  users: [{
+                    id: this.sessionId || 'demo-user',
+                    name: 'Demo User',
+                    joinedAt: Date.now()
+                  }]
+                }
+              });
+            }
+          } catch (error) {
+            console.error('[REALTIME] Error parsing message:', error);
+          }
+        };
 
       } catch (error) {
-        console.error('[REALTIME] Failed to create socket connection:', error);
+        console.error('[REALTIME] Failed to create WebSocket connection:', error);
         this.isConnecting = false;
         this.emit('error', error);
         resolve(false);
@@ -121,7 +134,7 @@ class RealtimeService {
   }
 
   disconnect() {
-    console.log('[REALTIME] Disconnecting from WebSocket server...');
+    console.log('[REALTIME] Disconnecting from demo WebSocket server...');
     
     if (this.currentSpaceId && this.sessionId) {
       this.leaveRoom(this.currentSpaceId);
@@ -130,7 +143,7 @@ class RealtimeService {
     this.stopHeartbeat();
     
     if (this.socket) {
-      this.socket.disconnect();
+      this.socket.close();
       this.socket = null;
     }
     
@@ -140,12 +153,12 @@ class RealtimeService {
   }
 
   joinRoom(spaceId: string, user: { id: string; name: string }): boolean {
-    if (!this.socket?.connected || !this.sessionId) {
+    if (this.socket?.readyState !== WebSocket.OPEN || !this.sessionId) {
       console.warn('[REALTIME] Cannot join room - not connected or no session ID');
       return false;
     }
 
-    console.log('[REALTIME] Joining room:', { spaceId, sessionId: this.sessionId, user });
+    console.log('[REALTIME] Joining demo room:', { spaceId, sessionId: this.sessionId, user });
     
     // Leave current room if different
     if (this.currentSpaceId && this.currentSpaceId !== spaceId) {
@@ -153,60 +166,96 @@ class RealtimeService {
     }
 
     this.currentSpaceId = spaceId;
+    this.demoParticipantCount = Math.floor(Math.random() * 5) + 1; // Demo: 1-5 participants
     
-    this.socket.emit('room:join', {
+    // Send demo join message
+    const joinMessage = JSON.stringify({
+      type: 'room:join',
       spaceId,
       sessionId: this.sessionId,
       user
     });
+    
+    this.socket.send(joinMessage);
+
+    // Simulate presence update
+    setTimeout(() => {
+      this.emit('presence:update', {
+        spaceId,
+        presence: {
+          count: this.demoParticipantCount,
+          users: [{
+            id: user.id,
+            name: user.name,
+            joinedAt: Date.now()
+          }]
+        }
+      });
+    }, 100);
 
     return true;
   }
 
   leaveRoom(spaceId: string): boolean {
-    if (!this.socket?.connected || !this.sessionId) {
+    if (this.socket?.readyState !== WebSocket.OPEN || !this.sessionId) {
       return false;
     }
 
-    console.log('[REALTIME] Leaving room:', { spaceId, sessionId: this.sessionId });
+    console.log('[REALTIME] Leaving demo room:', { spaceId, sessionId: this.sessionId });
     
-    this.socket.emit('room:leave', {
+    const leaveMessage = JSON.stringify({
+      type: 'room:leave',
       spaceId,
       sessionId: this.sessionId
     });
+    
+    this.socket.send(leaveMessage);
 
     if (this.currentSpaceId === spaceId) {
       this.currentSpaceId = null;
+      this.demoParticipantCount = 0;
     }
 
     return true;
   }
 
   broadcastStateChange(spaceId: string, state: any) {
-    if (!this.socket?.connected) {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
       console.warn('[REALTIME] Cannot broadcast state - not connected');
       return;
     }
 
-    console.log('[REALTIME] Broadcasting state change:', { spaceId, state });
+    console.log('[REALTIME] Broadcasting demo state change:', { spaceId, state });
     
-    this.socket.emit('state:broadcast', {
+    const broadcastMessage = JSON.stringify({
+      type: 'state:broadcast',
       spaceId,
       state,
       sessionId: this.sessionId,
       timestamp: Date.now()
     });
+    
+    this.socket.send(broadcastMessage);
+    
+    // Echo back to simulate server broadcast
+    setTimeout(() => {
+      this.emit('state:broadcast', {
+        spaceId,
+        state
+      });
+    }, 50);
   }
 
   sendStatePatch(spaceId: string, patch: any) {
-    if (!this.socket?.connected) {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
       console.warn('[REALTIME] Cannot send patch - not connected');
       return;
     }
 
-    console.log('[REALTIME] Sending state patch:', { spaceId, patch });
+    console.log('[REALTIME] Sending demo state patch:', { spaceId, patch });
     
-    this.socket.emit('state:patch', {
+    const patchMessage = JSON.stringify({
+      type: 'state:patch',
       op: 'patch',
       payload: patch,
       spaceId,
@@ -214,15 +263,17 @@ class RealtimeService {
       updatedAt: new Date().toISOString(),
       actorId: this.sessionId,
     });
+    
+    this.socket.send(patchMessage);
   }
 
   private startHeartbeat() {
     this.stopHeartbeat();
     
     this.heartbeatInterval = setInterval(() => {
-      if (this.socket?.connected) {
-        console.log('[REALTIME] Sending heartbeat ping');
-        this.socket.emit('presence:ping');
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        console.log('[REALTIME] Sending demo heartbeat ping');
+        this.socket.send('ping');
       }
     }, WS_CONFIG.HEARTBEAT_INTERVAL);
   }
@@ -264,7 +315,7 @@ class RealtimeService {
 
   // Getters
   get isConnected(): boolean {
-    return this.socket?.connected ?? false;
+    return this.socket?.readyState === WebSocket.OPEN;
   }
 
   get currentRoom(): string | null {
