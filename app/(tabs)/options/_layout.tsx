@@ -55,6 +55,19 @@ export default function OptionsLayout() {
           presentation: 'modal',
         }} 
       />
+      <Stack.Screen 
+        name="join-space" 
+        options={{ 
+          title: 'Space beitreten',
+          presentation: 'modal',
+        }} 
+      />
+      <Stack.Screen 
+        name="manage-spaces" 
+        options={{ 
+          title: 'Spaces verwalten',
+        }} 
+      />
     </Stack>
   );
 }

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { 
   UserPlus, 
@@ -44,7 +43,7 @@ function OptionItem({ icon, title, subtitle, onPress, badge }: OptionItemProps) 
     <TouchableOpacity style={[styles.optionItem, { borderBottomColor: colors.border }]} onPress={onPress}>
       <View style={styles.optionLeft}>
         <View style={[styles.iconContainer, { backgroundColor: colors.background }]}>
-          {icon}
+          {icon || null}
         </View>
         <View style={styles.textContainer}>
           <Text style={[styles.optionTitle, { color: colors.text }]}>{title}</Text>
@@ -73,9 +72,8 @@ export default function OptionsScreen() {
     unreadNotifications, 
     favoriteItems,
     currentSpace,
-    allSpaces,
+    allSpaces = [],
     generateInviteCode,
-    switchSpace,
   } = useApp();
 
   const handleInvite = () => {
@@ -191,13 +189,13 @@ export default function OptionsScreen() {
     return isDarkTheme ? 'Dunkel' : 'Hell';
   };
 
-  const getThemeIcon = () => {
+  const getThemeIcon = (): React.ReactNode => {
     if (isDarkTheme === null) return <Smartphone size={24} color={colors.primary} />;
     return isDarkTheme ? <Moon size={24} color={colors.primary} /> : <Sun size={24} color={colors.primary} />;
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         
         {/* Space Management */}
@@ -235,7 +233,7 @@ export default function OptionsScreen() {
           <OptionItem
             icon={<RefreshCw size={24} color={colors.primary} />}
             title="Spaces verwalten"
-            subtitle={`${allSpaces.length} Space${allSpaces.length !== 1 ? 's' : ''} verwalten`}
+            subtitle={`${(allSpaces || []).length} Space${(allSpaces || []).length !== 1 ? 's' : ''} verwalten`}
             onPress={handleManageSpaces}
           />
         </View>
@@ -247,7 +245,7 @@ export default function OptionsScreen() {
           <OptionItem
             icon={<Heart size={24} color={colors.danger} />}
             title="Favoriten"
-            subtitle={`${favoriteItems.length} favorisierte Artikel`}
+            subtitle={`${(favoriteItems || []).length} favorisierte Artikel`}
             onPress={handleFavorites}
           />
           
@@ -318,7 +316,7 @@ export default function OptionsScreen() {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

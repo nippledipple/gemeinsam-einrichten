@@ -1038,11 +1038,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
   }, [state.isDarkMode, systemColorScheme]);
 
   return {
-    ...(state || {}),
-    items,
-    categories,
-    rooms,
-    proposals,
+    ...state,
+    items: items || [],
+    categories: categories || [],
+    rooms: rooms || [],
+    proposals: proposals || [],
     signIn,
     signOut,
     createSpace,
