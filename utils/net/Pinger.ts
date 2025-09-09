@@ -1,48 +1,53 @@
+import { HEALTH_URL, FALLBACK_PING_ENDPOINTS } from '@/constants/config';
+
 let inFlight = false;
 
-// TODO: In production, replace with single health check:
-// - Use only https://api.rork.com/healthz
-// - Remove dual endpoint checking
-// Temporary dual ping check until backend is ready
-const PING_ENDPOINTS = [
-  'https://www.apple.com/library/test/success.html', // Should return 200
-  'https://clients3.google.com/generate_204' // Should return 204
-] as const;
-
 export async function pingOnce(timeoutMs = 3000): Promise<boolean> {
-  if (inFlight) return false; // blocke Überlappung
+  if (inFlight) return false; // Prevent overlapping pings
   inFlight = true;
   
   try {
-    // Test both endpoints in parallel
-    const promises = PING_ENDPOINTS.map(async (url) => {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      
-      try {
-        const res = await fetch(url, {
-          method: 'GET',
-          cache: 'no-store',
-          signal: ctrl.signal,
-        });
-        
-        // Apple endpoint returns 200, Google returns 204
-        const isSuccess = url.includes('apple.com') ? res.ok : (res.ok || res.status === 204);
-        return isSuccess;
-      } catch {
-        return false;
-      } finally {
-        clearTimeout(t);
-      }
-    });
+    // First try the health endpoint
+    const healthResult = await pingEndpoint(HEALTH_URL, timeoutMs);
+    if (healthResult) {
+      return true;
+    }
     
-    const results = await Promise.all(promises);
-    // Both endpoints must succeed for true result
-    return results.every(result => result === true);
+    // If health check fails, try fallback endpoints
+    console.log('[PING] Health check failed, trying fallback endpoints');
+    const fallbackPromises = FALLBACK_PING_ENDPOINTS.map(url => 
+      pingEndpoint(url, timeoutMs)
+    );
     
-  } catch {
+    const fallbackResults = await Promise.all(fallbackPromises);
+    // Both fallback endpoints must succeed
+    return fallbackResults.every(result => result === true);
+    
+  } catch (error) {
+    console.error('[PING] Ping failed:', error);
     return false;
   } finally {
     inFlight = false;
+  }
+}
+
+async function pingEndpoint(url: string, timeoutMs: number): Promise<boolean> {
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), timeoutMs);
+  
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+    
+    // Health endpoint should return 200, others may return 200 or 204
+    return res.ok || res.status === 204;
+  } catch (error) {
+    console.log(`[PING] Failed to reach ${url}:`, error);
+    return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
