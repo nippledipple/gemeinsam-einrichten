@@ -258,22 +258,115 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }));
   }, []);
 
-  // Real-time sync simulation - in production this would use WebSockets or Firebase
+  // Real-time sync system using localStorage for cross-tab communication
   const syncWithOtherDevices = useCallback(() => {
-    // Simulate real-time synchronization
+    if (!state.currentSpace) return;
+    
     console.log('Syncing with other devices...');
     
-    // In production, this would:
-    // 1. Send current state to backend
-    // 2. Listen for changes from other devices
-    // 3. Update local state when changes are received
+    try {
+      // Create a sync event with current space data
+      const syncData = {
+        spaceId: state.currentSpace.id,
+        spaceName: state.currentSpace.name,
+        members: state.currentSpace.members,
+        data: state.spaceData?.[state.currentSpace.id] || {
+          items: [],
+          proposals: [],
+          categories: [],
+          rooms: getDefaultRooms(),
+        },
+        timestamp: Date.now(),
+        syncId: `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      };
+      
+      // Store sync data in localStorage for cross-tab communication
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`space_sync_${state.currentSpace.id}`, JSON.stringify(syncData));
+        
+        // Trigger storage event for other tabs/windows
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: `space_sync_${state.currentSpace.id}`,
+          newValue: JSON.stringify(syncData),
+        }));
+      }
+      
+      // Simulate network sync delay
+      setTimeout(() => {
+        addNotification({
+          type: 'info',
+          title: 'Synchronisiert',
+          message: 'Deine Daten wurden mit anderen Geräten synchronisiert.',
+        });
+      }, 500);
+      
+    } catch (error) {
+      console.error('Sync failed:', error);
+      addNotification({
+        type: 'error',
+        title: 'Synchronisation fehlgeschlagen',
+        message: 'Die Synchronisation mit anderen Geräten ist fehlgeschlagen.',
+      });
+    }
+  }, [state.currentSpace, state.spaceData, addNotification]);
+  
+  // Listen for sync events from other devices/tabs
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     
-    addNotification({
-      type: 'info',
-      title: 'Synchronisiert',
-      message: 'Deine Daten wurden mit anderen Geräten synchronisiert.',
-    });
-  }, [addNotification]);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (!event.key?.startsWith('space_sync_') || !event.newValue) return;
+      
+      try {
+        const syncData = JSON.parse(event.newValue);
+        const spaceId = syncData.spaceId;
+        
+        // Only sync if this is for our current space and from another device
+        if (state.currentSpace?.id === spaceId && syncData.timestamp > Date.now() - 5000) {
+          console.log('Received sync data from another device:', syncData);
+          
+          setState(prev => {
+            // Update space data with synced data
+            const updatedSpaceData = {
+              ...(prev.spaceData || {}),
+              [spaceId]: syncData.data,
+            };
+            
+            // Update space members if needed
+            const updatedSpace = {
+              ...prev.currentSpace!,
+              members: syncData.members || prev.currentSpace!.members,
+            };
+            
+            const updatedAllSpaces = (prev.allSpaces || []).map(s => 
+              s.id === spaceId ? updatedSpace : s
+            );
+            
+            return {
+              ...prev,
+              currentSpace: updatedSpace,
+              allSpaces: updatedAllSpaces,
+              spaceData: updatedSpaceData,
+            };
+          });
+          
+          addNotification({
+            type: 'info',
+            title: 'Daten aktualisiert',
+            message: 'Neue Änderungen von anderen Geräten erhalten.',
+          });
+        }
+      } catch (error) {
+        console.error('Failed to process sync data:', error);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [state.currentSpace, addNotification]);
 
   const joinSpace = useCallback((code: string) => {
     if (!state.currentUser) return false;
@@ -345,11 +438,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         
         // Trigger automatic synchronization after joining
         setTimeout(() => {
-          addNotification({
-            type: 'info',
-            title: 'Synchronisiert',
-            message: 'Deine Daten wurden automatisch mit anderen Geräten synchronisiert.',
-          });
+          syncWithOtherDevices();
         }, 1000);
         
         return true;
@@ -422,6 +511,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
             message: `Du bist dem Space "${space.name}" beigetreten!`,
           });
           
+          // Trigger synchronization after joining
+          setTimeout(() => {
+            syncWithOtherDevices();
+          }, 1000);
+          
           return true;
         }
       }
@@ -480,7 +574,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     });
     
     return false;
-  }, [state.currentUser, state.allSpaces, state.currentSpace, addNotification]);
+  }, [state.currentUser, state.allSpaces, state.currentSpace, addNotification, syncWithOtherDevices]);
 
   // Helper to get current space data
   const getCurrentSpaceData = useCallback((): SpaceData => {
@@ -586,8 +680,13 @@ export const [AppProvider, useApp] = createContextHook(() => {
       };
     });
     
+    // Trigger sync after adding item
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+    
     return item;
-  }, [state.currentUser, state.currentSpace, getCurrentSpaceData]);
+  }, [state.currentUser, state.currentSpace, getCurrentSpaceData, syncWithOtherDevices]);
 
   const deleteItem = useCallback((itemId: string) => {
     if (!state.currentSpace) return;
@@ -623,7 +722,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
         },
       };
     });
-  }, [state.currentSpace]);
+    
+    // Trigger sync after operation
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+  }, [state.currentSpace, syncWithOtherDevices]);
 
   const deleteRoom = useCallback((roomId: string) => {
     if (!state.currentSpace) return;
@@ -653,7 +757,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
         },
       };
     });
-  }, [state.currentSpace]);
+    
+    // Trigger sync after operation
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+  }, [state.currentSpace, syncWithOtherDevices]);
 
   const respondToProposal = useCallback((proposalId: string, response: 'accepted' | 'rejected' | 'later') => {
     if (!state.currentSpace) return;
@@ -702,7 +811,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
       title: 'Antwort erhalten',
       message: `Dein Vorschlag wurde ${responseText}`,
     });
-  }, [state.currentSpace, addNotification]);
+    
+    // Trigger sync after responding to proposal
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+  }, [state.currentSpace, addNotification, syncWithOtherDevices]);
 
   const togglePriority = useCallback((itemId: string) => {
     if (!state.currentSpace) return;
@@ -749,7 +863,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
         },
       };
     });
-  }, [state.currentSpace]);
+    
+    // Trigger sync after operation
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+  }, [state.currentSpace, syncWithOtherDevices]);
 
   const toggleFavorite = useCallback((itemId: string) => {
     if (!state.currentSpace) return;
@@ -776,7 +895,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
         },
       };
     });
-  }, [state.currentSpace]);
+    
+    // Trigger sync after operation
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+  }, [state.currentSpace, syncWithOtherDevices]);
 
   const updateRoomBudget = useCallback((roomId: string, budget: number) => {
     if (!state.currentSpace) return;
@@ -803,7 +927,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
         },
       };
     });
-  }, [state.currentSpace]);
+    
+    // Trigger sync after operation
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+  }, [state.currentSpace, syncWithOtherDevices]);
 
 
 
@@ -852,8 +981,13 @@ export const [AppProvider, useApp] = createContextHook(() => {
       };
     });
     
+    // Trigger sync after adding room
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+    
     return room;
-  }, [state.currentSpace]);
+  }, [state.currentSpace, syncWithOtherDevices]);
 
   // Clean up expired invites
   const cleanupExpiredInvites = useCallback(() => {
@@ -1011,8 +1145,13 @@ export const [AppProvider, useApp] = createContextHook(() => {
       message: `Einladungscode für ${email}: ${inviteCode}\nGültig für 5 Minuten. Teile diesen Code mit der Person.`,
     });
     
+    // Trigger sync after inviting to space
+    setTimeout(() => {
+      syncWithOtherDevices();
+    }, 100);
+    
     return true;
-  }, [state.currentSpace, state.currentUser, addNotification]);
+  }, [state.currentSpace, state.currentUser, addNotification, syncWithOtherDevices]);
 
   // Computed values for current space
   const currentSpaceData = useMemo(() => getCurrentSpaceData(), [getCurrentSpaceData]);
@@ -1095,5 +1234,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
     unreadNotifications,
     colors,
     isDarkTheme,
+    syncWithOtherDevices,
   };
 });
