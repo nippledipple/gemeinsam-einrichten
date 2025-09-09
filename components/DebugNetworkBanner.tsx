@@ -173,7 +173,7 @@ export default function DebugNetworkBanner() {
         <Text style={styles.value}>{isOnline ? 'true' : 'false'} (stable)</Text>
         
         <Text style={styles.label}>WS:</Text>
-        <Text style={styles.value}>{isRealtimeConnected ? 'connected (demo)' : 'disconnected'}</Text>
+        <Text style={styles.value}>{isRealtimeConnected ? 'connected' : 'disconnected'}</Text>
       </View>
       
       <View style={styles.row}>
@@ -189,7 +189,7 @@ export default function DebugNetworkBanner() {
         </Text>
         
         <Text style={styles.label}>Participants:</Text>
-        <Text style={styles.value}>{currentSpacePresence?.count || 0} (demo)</Text>
+        <Text style={styles.value}>{currentSpacePresence?.count || 0}</Text>
       </View>
       
       <View style={styles.row}>
@@ -201,13 +201,13 @@ export default function DebugNetworkBanner() {
       </View>
       
       <View style={styles.row}>
-        <Text style={styles.label}>Ping Endpoints:</Text>
-        <Text style={styles.value} numberOfLines={1}>Apple + Google (dual)</Text>
+        <Text style={styles.label}>Health URL:</Text>
+        <Text style={styles.value} numberOfLines={1}>api.rork.com/api/healthz</Text>
       </View>
       
       <View style={styles.row}>
         <Text style={styles.label}>WebSocket:</Text>
-        <Text style={styles.value} numberOfLines={1}>{WSS_URL} (demo)</Text>
+        <Text style={styles.value} numberOfLines={1}>{WSS_URL}/realtime</Text>
       </View>
       
       {(debugInfo.logs.length > 0 || debugInfo.wsEvents.length > 0) && (

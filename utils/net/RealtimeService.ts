@@ -57,7 +57,7 @@ class RealtimeService {
 
       try {
         this.socket = io(WSS_URL, {
-          path: '/realtime',
+          path: WS_CONFIG.PATH,
           transports: ['websocket'],
           reconnection: true,
           reconnectionDelay: WS_CONFIG.RECONNECTION_DELAY,
@@ -90,12 +90,12 @@ class RealtimeService {
         // Listen for server events
         this.socket.on('presence:update', (data) => {
           console.log('[REALTIME] Presence update received:', data);
-          this.emit('presence:update', data);
+          this.emit('presence:update', { spaceId: this.currentSpaceId || '', presence: data });
         });
 
         this.socket.on('state:broadcast', (data) => {
           console.log('[REALTIME] State broadcast received:', data);
-          this.emit('state:broadcast', data);
+          this.emit('state:broadcast', { spaceId: this.currentSpaceId || '', state: data });
         });
 
       } catch (error) {
@@ -125,13 +125,13 @@ class RealtimeService {
     this.isConnecting = false;
   }
 
-  joinRoom(spaceId: string, user: { id: string; name: string }): boolean {
+  joinRoom(spaceId: string, sessionId?: string): boolean {
     if (!this.socket?.connected || !this.sessionId) {
       console.warn('[REALTIME] Cannot join room - not connected or no session ID');
       return false;
     }
 
-    console.log('[REALTIME] Joining room:', { spaceId, sessionId: this.sessionId, user });
+    console.log('[REALTIME] Joining room:', { spaceId, sessionId: this.sessionId });
     
     // Leave current room if different
     if (this.currentSpaceId && this.currentSpaceId !== spaceId) {
@@ -143,14 +143,13 @@ class RealtimeService {
     // Send join room event
     this.socket.emit('room:join', {
       spaceId,
-      sessionId: this.sessionId,
-      user
+      sessionId: sessionId || this.sessionId
     });
 
     return true;
   }
 
-  leaveRoom(spaceId: string): boolean {
+  leaveRoom(spaceId: string, sessionId?: string): boolean {
     if (!this.socket?.connected || !this.sessionId) {
       return false;
     }
@@ -159,7 +158,7 @@ class RealtimeService {
     
     this.socket.emit('room:leave', {
       spaceId,
-      sessionId: this.sessionId
+      sessionId: sessionId || this.sessionId
     });
 
     if (this.currentSpaceId === spaceId) {
@@ -169,37 +168,17 @@ class RealtimeService {
     return true;
   }
 
-  broadcastStateChange(spaceId: string, state: any) {
-    if (!this.socket?.connected) {
-      console.warn('[REALTIME] Cannot broadcast state - not connected');
-      return;
-    }
-
-    console.log('[REALTIME] Broadcasting state change:', { spaceId, state });
-    
-    this.socket.emit('state:patch', {
-      op: 'broadcast',
-      payload: state,
-      spaceId,
-      sessionId: this.sessionId,
-      updatedAt: new Date().toISOString(),
-      actorId: this.sessionId,
-    });
-  }
-
-  sendStatePatch(spaceId: string, patch: any) {
+  sendPatch(diff: any) {
     if (!this.socket?.connected) {
       console.warn('[REALTIME] Cannot send patch - not connected');
       return;
     }
 
-    console.log('[REALTIME] Sending state patch:', { spaceId, patch });
+    console.log('[REALTIME] Sending state patch:', diff);
     
     this.socket.emit('state:patch', {
       op: 'patch',
-      payload: patch,
-      spaceId,
-      sessionId: this.sessionId,
+      payload: diff,
       updatedAt: new Date().toISOString(),
       actorId: this.sessionId,
     });

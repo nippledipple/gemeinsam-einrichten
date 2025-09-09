@@ -1,13 +1,14 @@
-// Production Backend Configuration
+// Backend Configuration
 export const API_CONFIG = {
   BASE_URL: 'https://api.rork.com',
-  HEALTH_ENDPOINT: '/healthz',
+  HEALTH_ENDPOINT: '/api/healthz',
   TIMEOUT: 3000,
 } as const;
 
-// Production WebSocket Configuration
+// WebSocket Configuration
 export const WS_CONFIG = {
-  URL: 'wss://api.rork.com/realtime', // Production WebSocket server
+  URL: 'wss://api.rork.com',
+  PATH: '/realtime',
   RECONNECTION_DELAY: 500,
   RECONNECTION_DELAY_MAX: 5000,
   MAX_RECONNECTION_ATTEMPTS: 10,
@@ -15,12 +16,6 @@ export const WS_CONFIG = {
   PRESENCE_TIMEOUT: 45000, // 45 seconds
 } as const;
 
-// Production URLs
+// URLs
 export const HEALTH_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.HEALTH_ENDPOINT}`;
 export const WSS_URL = WS_CONFIG.URL;
-
-// Fallback ping endpoints (if health check fails)
-export const FALLBACK_PING_ENDPOINTS = [
-  'https://www.apple.com/library/test/success.html',
-  'https://clients3.google.com/generate_204'
-] as const;

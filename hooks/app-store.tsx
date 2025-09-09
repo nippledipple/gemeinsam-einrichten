@@ -87,10 +87,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
       if (connected && state.currentSpace) {
         console.log('[REALTIME] Auto-joining current space after connection');
-        realtimeService.joinRoom(state.currentSpace.id, {
-          id: state.currentUser.id,
-          name: state.currentUser.name,
-        });
+        realtimeService.joinRoom(state.currentSpace.id, realtimeService.session || undefined);
       }
     } catch (error) {
       console.error('[REALTIME] Failed to connect:', error);
@@ -108,10 +105,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       setState(prev => ({ ...prev, isRealtimeConnected: true }));
       
       if (state.currentSpace && state.currentUser) {
-        realtimeService.joinRoom(state.currentSpace.id, {
-          id: state.currentUser.id,
-          name: state.currentUser.name,
-        });
+        realtimeService.joinRoom(state.currentSpace.id, realtimeService.session || undefined);
       }
     };
 
@@ -221,10 +215,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   useEffect(() => {
     if (state.currentSpace && state.currentUser && state.isRealtimeConnected && state.isOnline) {
       console.log('[REALTIME] Switching to space:', state.currentSpace.id);
-      realtimeService.joinRoom(state.currentSpace.id, {
-        id: state.currentUser.id,
-        name: state.currentUser.name,
-      });
+      realtimeService.joinRoom(state.currentSpace.id, realtimeService.session || undefined);
     }
   }, [state.currentSpace, state.currentUser, state.isRealtimeConnected, state.isOnline]);
 
@@ -353,7 +344,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       rooms: getDefaultRooms(),
     };
 
-    realtimeService.broadcastStateChange(state.currentSpace.id, spaceData);
+    realtimeService.sendPatch(spaceData);
     
     setState(prev => ({
       ...prev,
