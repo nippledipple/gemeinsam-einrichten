@@ -64,7 +64,6 @@ export default function SettingsScreen() {
     soundEnabled: true,
     vibrationEnabled: true,
     autoSync: true,
-    offlineMode: false,
   });
 
   const updateSetting = (key: keyof typeof settings, value: boolean) => {

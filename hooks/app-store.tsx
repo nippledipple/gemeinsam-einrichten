@@ -39,7 +39,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     notifications: [],
     isLoading: true,
     isDarkMode: null,
-    isOnline: false, // Start as offline until we check
+    isOnline: true, // Start optimistically online
     lastSyncTime: null,
   });
 
@@ -47,24 +47,39 @@ export const [AppProvider, useApp] = createContextHook(() => {
   useEffect(() => {
     loadState();
     
-    // Setup network monitoring
+    // Setup network monitoring with improved logic
     const unsubscribe = NetInfo.addEventListener(networkState => {
-      console.log('Network state changed:', networkState);
-      const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
+      console.log('[APP-STORE] Network state changed:', {
+        isConnected: networkState.isConnected,
+        isInternetReachable: networkState.isInternetReachable,
+        type: networkState.type,
+        details: networkState.details
+      });
+      
+      // More permissive connection logic - if we have any connection, assume online
+      // This prevents false offline states due to NetInfo quirks
+      const isConnected = networkState.isConnected === true;
       
       setState(prev => {
         const wasOffline = !prev.isOnline;
+        const newOnlineState = Boolean(isConnected);
+        
+        console.log('[APP-STORE] Connection state update:', {
+          wasOffline,
+          newOnlineState,
+          hasCurrentSpace: !!prev.currentSpace
+        });
+        
         const newState = {
           ...prev,
-          isOnline: Boolean(isConnected),
+          isOnline: newOnlineState,
           lastSyncTime: isConnected ? Date.now() : prev.lastSyncTime,
         };
         
         // If we just came back online, trigger sync
         if (isConnected && wasOffline && prev.currentSpace) {
           setTimeout(() => {
-            // Call sync directly here to avoid dependency issues
-            console.log('Syncing after coming back online...');
+            console.log('[APP-STORE] Triggering sync after coming back online...');
           }, 1000);
         }
         
@@ -72,15 +87,32 @@ export const [AppProvider, useApp] = createContextHook(() => {
       });
     });
     
-    // Get initial network state
-    NetInfo.fetch().then(networkState => {
-      const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
-      setState(prev => ({
-        ...prev,
-        isOnline: Boolean(isConnected),
-        lastSyncTime: isConnected ? Date.now() : prev.lastSyncTime,
-      }));
-    });
+    // Get initial network state with better error handling
+    NetInfo.fetch()
+      .then(networkState => {
+        console.log('[APP-STORE] Initial network state:', {
+          isConnected: networkState.isConnected,
+          isInternetReachable: networkState.isInternetReachable,
+          type: networkState.type
+        });
+        
+        const isConnected = networkState.isConnected === true;
+        
+        setState(prev => ({
+          ...prev,
+          isOnline: Boolean(isConnected),
+          lastSyncTime: isConnected ? Date.now() : prev.lastSyncTime,
+        }));
+      })
+      .catch(error => {
+        console.error('[APP-STORE] Failed to fetch initial network state:', error);
+        // If NetInfo fails, assume we're online to prevent false offline states
+        setState(prev => ({
+          ...prev,
+          isOnline: true,
+          lastSyncTime: Date.now(),
+        }));
+      });
     
     return () => {
       unsubscribe();
@@ -229,7 +261,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       notifications: [],
       isLoading: false,
       isDarkMode: null,
-      isOnline: false,
+      isOnline: true,
       lastSyncTime: null,
     });
   }, []);
@@ -344,6 +376,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
         lastSyncTime: Date.now(),
       }));
       
+      console.log('[APP-STORE] Sync completed successfully');
+      
       // Show sync notification
       setTimeout(() => {
         addNotification({
@@ -354,11 +388,9 @@ export const [AppProvider, useApp] = createContextHook(() => {
       }, 500);
       
     } catch (error) {
-      console.error('Sync failed:', error);
-      setState(prev => ({
-        ...prev,
-        isOnline: false,
-      }));
+      console.error('[APP-STORE] Sync failed:', error);
+      console.warn('[APP-STORE] Sync failed, but keeping online status - sync errors don\'t mean we\'re offline');
+      // Don't set offline just because sync failed - network might still be available
       addNotification({
         type: 'error',
         title: 'Synchronisation fehlgeschlagen',
@@ -380,7 +412,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         
         // Only sync if this is for our current space and from another device
         if (state.currentSpace?.id === spaceId && syncData.timestamp > Date.now() - 5000) {
-          console.log('Received sync data from another device:', syncData);
+          console.log('[APP-STORE] Received sync data from another device');
           
           setState(prev => {
             // Update space data with synced data
@@ -398,6 +430,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
             const updatedAllSpaces = (prev.allSpaces || []).map(s => 
               s.id === spaceId ? updatedSpace : s
             );
+            
+            console.log('[APP-STORE] Received sync data from another device');
             
             return {
               ...prev,
