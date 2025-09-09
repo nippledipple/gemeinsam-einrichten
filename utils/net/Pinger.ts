@@ -1,3 +1,5 @@
+import { HEALTH_CHECK_URL } from '@/constants/config';
+
 let inFlight = false;
 
 export async function pingOnce(timeoutMs = 3000): Promise<boolean> {
@@ -6,12 +8,12 @@ export async function pingOnce(timeoutMs = 3000): Promise<boolean> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch('https://clients3.google.com/generate_204', {
+    const res = await fetch(HEALTH_CHECK_URL, {
       method: 'GET',
       cache: 'no-store',
       signal: ctrl.signal,
     });
-    return res.ok || res.status === 204;
+    return res.ok;
   } catch {
     return false;
   } finally {

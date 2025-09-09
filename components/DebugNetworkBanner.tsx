@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useApp } from '@/hooks/app-store';
 import { pingOnce } from '@/utils/net/Pinger';
+import { HEALTH_CHECK_URL } from '@/constants/config';
 
 interface NetworkDebugInfo {
   pingResult: boolean | null;
@@ -128,6 +129,11 @@ export default function DebugNetworkBanner() {
         <Text style={styles.value}>
           {lastSyncTime ? formatTime(new Date(lastSyncTime).toISOString()) : 'Never'}
         </Text>
+      </View>
+      
+      <View style={styles.row}>
+        <Text style={styles.label}>Health URL:</Text>
+        <Text style={styles.value} numberOfLines={1}>{HEALTH_CHECK_URL}</Text>
       </View>
       
       {debugInfo.logs.length > 0 && (
