@@ -43,7 +43,7 @@ function OptionItem({ icon, title, subtitle, onPress, badge }: OptionItemProps) 
     <TouchableOpacity style={[styles.optionItem, { borderBottomColor: colors.border }]} onPress={onPress}>
       <View style={styles.optionLeft}>
         <View style={[styles.iconContainer, { backgroundColor: colors.background }]}>
-          {icon || null}
+          {icon}
         </View>
         <View style={styles.textContainer}>
           <Text style={[styles.optionTitle, { color: colors.text }]}>{title}</Text>
