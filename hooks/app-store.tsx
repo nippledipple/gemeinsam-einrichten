@@ -10,6 +10,7 @@ import { useColorScheme } from 'react-native';
 interface AppState {
   currentUser: User | null;
   currentSpace: Space | null;
+  allSpaces: Space[]; // Store all spaces user has access to
   items: Item[];
   proposals: Proposal[];
   categories: Category[];
@@ -26,6 +27,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const [state, setState] = useState<AppState>({
     currentUser: null,
     currentSpace: null,
+    allSpaces: [],
     items: [],
     proposals: [],
     categories: [],
@@ -45,6 +47,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       const toSave = {
         currentUser: state.currentUser,
         currentSpace: state.currentSpace,
+        allSpaces: state.allSpaces,
         items: state.items,
         proposals: state.proposals,
         categories: state.categories,
@@ -125,6 +128,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     setState({
       currentUser: null,
       currentSpace: null,
+      allSpaces: [],
       items: [],
       proposals: [],
       categories: [],
@@ -146,7 +150,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
       createdAt: Date.now(),
     };
     
-    setState(prev => ({ ...prev, currentSpace: space }));
+    setState(prev => ({ 
+      ...prev, 
+      currentSpace: space,
+      allSpaces: [...prev.allSpaces, space]
+    }));
   }, [state.currentUser]);
 
   const generateInviteCode = useCallback(() => {
@@ -188,78 +196,132 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return false;
     }
     
-    // Check if current space has this code and it's not expired
-    if (state.currentSpace?.code === code && 
-        state.currentSpace.codeExpiry && 
-        Date.now() < state.currentSpace.codeExpiry) {
-      
-      // Check if user is already a member
-      const isAlreadyMember = state.currentSpace.members.some(m => m.id === state.currentUser!.id);
-      if (isAlreadyMember) {
-        addNotification({
-          type: 'info',
-          title: 'Bereits Mitglied',
-          message: 'Du bist bereits Mitglied dieses Spaces.',
-        });
-        return true;
-      }
-      
-      // Add user to space
-      setState(prev => ({
-        ...prev,
-        currentSpace: prev.currentSpace ? {
-          ...prev.currentSpace,
-          members: [...prev.currentSpace.members, state.currentUser!],
-        } : null,
-      }));
-      
-      addNotification({
-        type: 'joined',
-        title: 'Space beigetreten',
-        message: `Du bist dem Space "${state.currentSpace.name}" beigetreten!`,
-      });
-      
-      return true;
-    }
-    
-    // Check if there's a pending invite with this code
-    if (state.currentSpace?.pendingInvites) {
-      const validInvite = state.currentSpace.pendingInvites.find(invite => 
-        invite.code === code && 
-        Date.now() < invite.expiry &&
-        invite.email.toLowerCase() === state.currentUser!.email.toLowerCase()
-      );
-      
-      if (validInvite) {
+    // Check all spaces for this code
+    for (const space of state.allSpaces) {
+      // Check if space has this code and it's not expired
+      if (space.code === code && 
+          space.codeExpiry && 
+          Date.now() < space.codeExpiry) {
+        
         // Check if user is already a member
-        const isAlreadyMember = state.currentSpace.members.some(m => m.id === state.currentUser!.id);
+        const isAlreadyMember = space.members.some(m => m.id === state.currentUser!.id);
         if (isAlreadyMember) {
-          addNotification({
-            type: 'info',
-            title: 'Bereits Mitglied',
-            message: 'Du bist bereits Mitglied dieses Spaces.',
-          });
+          // Switch to this space if not current
+          if (state.currentSpace?.id !== space.id) {
+            setState(prev => ({ ...prev, currentSpace: space }));
+            addNotification({
+              type: 'info',
+              title: 'Space gewechselt',
+              message: `Du bist zu "${space.name}" gewechselt.`,
+            });
+          } else {
+            addNotification({
+              type: 'info',
+              title: 'Bereits Mitglied',
+              message: 'Du bist bereits Mitglied dieses Spaces.',
+            });
+          }
           return true;
         }
         
-        // Add user to space and remove the used invite
+        // Add user to space and update both allSpaces and currentSpace
+        const updatedSpace = {
+          ...space,
+          members: [...space.members, state.currentUser!],
+        };
+        
         setState(prev => ({
           ...prev,
-          currentSpace: prev.currentSpace ? {
-            ...prev.currentSpace,
-            members: [...prev.currentSpace.members, state.currentUser!],
-            pendingInvites: prev.currentSpace.pendingInvites?.filter(inv => inv.code !== code) || [],
-          } : null,
+          currentSpace: updatedSpace,
+          allSpaces: prev.allSpaces.map(s => s.id === space.id ? updatedSpace : s),
         }));
         
         addNotification({
           type: 'joined',
           title: 'Space beigetreten',
-          message: `Du bist dem Space "${state.currentSpace.name}" beigetreten!`,
+          message: `Du bist dem Space "${space.name}" beigetreten!`,
         });
         
         return true;
       }
+      
+      // Check if there's a pending invite with this code in this space
+      if (space.pendingInvites) {
+        const validInvite = space.pendingInvites.find(invite => 
+          invite.code === code && 
+          Date.now() < invite.expiry &&
+          invite.email.toLowerCase() === state.currentUser!.email.toLowerCase()
+        );
+        
+        if (validInvite) {
+          // Check if user is already a member
+          const isAlreadyMember = space.members.some(m => m.id === state.currentUser!.id);
+          if (isAlreadyMember) {
+            // Switch to this space if not current
+            if (state.currentSpace?.id !== space.id) {
+              setState(prev => ({ ...prev, currentSpace: space }));
+              addNotification({
+                type: 'info',
+                title: 'Space gewechselt',
+                message: `Du bist zu "${space.name}" gewechselt.`,
+              });
+            } else {
+              addNotification({
+                type: 'info',
+                title: 'Bereits Mitglied',
+                message: 'Du bist bereits Mitglied dieses Spaces.',
+              });
+            }
+            return true;
+          }
+          
+          // Add user to space and remove the used invite
+          const updatedSpace = {
+            ...space,
+            members: [...space.members, state.currentUser!],
+            pendingInvites: space.pendingInvites?.filter(inv => inv.code !== code) || [],
+          };
+          
+          setState(prev => ({
+            ...prev,
+            currentSpace: updatedSpace,
+            allSpaces: prev.allSpaces.map(s => s.id === space.id ? updatedSpace : s),
+          }));
+          
+          addNotification({
+            type: 'joined',
+            title: 'Space beigetreten',
+            message: `Du bist dem Space "${space.name}" beigetreten!`,
+          });
+          
+          return true;
+        }
+      }
+    }
+    
+    // If no space found, create a mock space for demo purposes
+    // In production, this would query the backend for the space
+    if (code.match(/^[A-Z0-9]{4}$/)) {
+      const mockSpace: Space = {
+        id: `space_${code}_${Date.now()}`,
+        name: `Space ${code}`,
+        members: [state.currentUser!],
+        createdAt: Date.now(),
+      };
+      
+      setState(prev => ({
+        ...prev,
+        currentSpace: mockSpace,
+        allSpaces: [...prev.allSpaces, mockSpace],
+      }));
+      
+      addNotification({
+        type: 'joined',
+        title: 'Space beigetreten',
+        message: `Du bist dem Space "${mockSpace.name}" beigetreten!`,
+      });
+      
+      return true;
     }
     
     addNotification({
@@ -269,7 +331,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     });
     
     return false;
-  }, [state.currentUser, state.currentSpace, addNotification]);
+  }, [state.currentUser, state.allSpaces, state.currentSpace, addNotification]);
 
   // Item functions
   const addItem = useCallback((
