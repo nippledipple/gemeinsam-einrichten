@@ -1,18 +1,11 @@
-import { Stack } from 'expo-router';
-import { TouchableOpacity } from 'react-native';
+import { Stack, router } from 'expo-router';
+import { TouchableOpacity, StyleSheet } from 'react-native';
 import { MoreVertical } from 'lucide-react-native';
-import { router } from 'expo-router';
 import { Colors } from '@/constants/colors';
 
 export default function HomeLayout() {
   return (
     <Stack>
-      <Stack.Screen
-        name="index"
-        options={{
-          headerShown: false,
-        }}
-      />
       <Stack.Screen
         name="home"
         options={{
@@ -20,7 +13,7 @@ export default function HomeLayout() {
           headerRight: () => (
             <TouchableOpacity
               onPress={() => router.push('../../modal')}
-              style={{ padding: 8 }}
+              style={styles.headerButton}
             >
               <MoreVertical size={24} color={Colors.text} />
             </TouchableOpacity>
@@ -30,3 +23,9 @@ export default function HomeLayout() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  headerButton: {
+    padding: 8,
+  },
+});

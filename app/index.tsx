@@ -10,7 +10,7 @@ export default function IndexScreen() {
     useCallback(() => {
       if (!isLoading) {
         if (currentUser && currentSpace) {
-          router.replace('/(tabs)/(home)');
+          router.replace('/(tabs)/(home)/home');
         } else {
           router.replace('/(auth)/welcome');
         }

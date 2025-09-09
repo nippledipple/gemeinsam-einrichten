@@ -159,7 +159,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       currentSpace: space,
       allSpaces: [...(prev.allSpaces || []), space],
       spaceData: {
-        ...prev.spaceData,
+        ...(prev.spaceData || {}),
         [spaceId]: initialSpaceData,
       },
     }));
@@ -253,7 +253,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
             currentSpace: updatedSpace,
             allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
             spaceData: {
-              ...prev.spaceData,
+              ...(prev.spaceData || {}),
               [space.id]: spaceData,
             },
           };
@@ -322,7 +322,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
               currentSpace: updatedSpace,
               allSpaces: updatedAllSpaces.includes(updatedSpace) ? updatedAllSpaces : [...updatedAllSpaces, updatedSpace],
               spaceData: {
-                ...prev.spaceData,
+                ...(prev.spaceData || {}),
                 [space.id]: spaceData,
               },
             };
@@ -370,7 +370,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           currentSpace: mockSpace,
           allSpaces: [...(prev.allSpaces || []), mockSpace],
           spaceData: {
-            ...prev.spaceData,
+            ...(prev.spaceData || {}),
             [spaceId]: initialSpaceData,
           },
         }));
@@ -470,7 +470,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             items: [...(currentData.items || []), item],
@@ -507,7 +507,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             items: updatedItems,
@@ -537,7 +537,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             items: updatedItems,
@@ -579,7 +579,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             proposals: updatedProposals,
@@ -635,7 +635,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             items: updatedItems,
@@ -662,7 +662,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             items: updatedItems,
@@ -689,7 +689,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             rooms: updatedRooms,
@@ -737,7 +737,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       return {
         ...prev,
         spaceData: {
-          ...prev.spaceData,
+          ...(prev.spaceData || {}),
           [spaceId]: {
             ...currentData,
             rooms: [...(currentData.rooms || []), room],
@@ -784,7 +784,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           ...prev,
           currentSpace: space,
           spaceData: {
-            ...prev.spaceData,
+            ...(prev.spaceData || {}),
             [spaceId]: spaceData,
           },
         };
@@ -810,7 +810,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     setState(prev => {
       const remainingSpaces = (prev.allSpaces || []).filter(s => s.id !== spaceId);
-      const updatedSpaceData = { ...prev.spaceData };
+      const updatedSpaceData = { ...(prev.spaceData || {}) };
       delete updatedSpaceData[spaceId]; // Remove space data
       
       // If leaving current space, switch to first remaining space
