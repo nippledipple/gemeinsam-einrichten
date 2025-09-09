@@ -7,14 +7,18 @@ import { detectCategory, defaultRooms } from '@/utils/categories';
 import { ColorScheme, LightColors, DarkColors } from '@/constants/colors';
 import { useColorScheme } from 'react-native';
 
-interface AppState {
-  currentUser: User | null;
-  currentSpace: Space | null;
-  allSpaces: Space[]; // Store all spaces user has access to
+interface SpaceData {
   items: Item[];
   proposals: Proposal[];
   categories: Category[];
   rooms: Room[];
+}
+
+interface AppState {
+  currentUser: User | null;
+  currentSpace: Space | null;
+  allSpaces: Space[]; // Store all spaces user has access to
+  spaceData: { [spaceId: string]: SpaceData }; // Space-specific data
   notifications: Notification[];
   isLoading: boolean;
   isDarkMode: boolean | null; // null = system preference
@@ -28,10 +32,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     currentUser: null,
     currentSpace: null,
     allSpaces: [],
-    items: [],
-    proposals: [],
-    categories: [],
-    rooms: defaultRooms,
+    spaceData: {},
     notifications: [],
     isLoading: true,
     isDarkMode: null,
@@ -48,10 +49,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         currentUser: state.currentUser,
         currentSpace: state.currentSpace,
         allSpaces: state.allSpaces,
-        items: state.items,
-        proposals: state.proposals,
-        categories: state.categories,
-        rooms: state.rooms,
+        spaceData: state.spaceData,
         notifications: state.notifications,
         isDarkMode: state.isDarkMode,
       };
@@ -129,10 +127,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       currentUser: null,
       currentSpace: null,
       allSpaces: [],
-      items: [],
-      proposals: [],
-      categories: [],
-      rooms: defaultRooms,
+      spaceData: {},
       notifications: [],
       isLoading: false,
       isDarkMode: null,
@@ -143,17 +138,30 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const createSpace = useCallback((name: string) => {
     if (!state.currentUser) return;
     
+    const spaceId = Date.now().toString();
     const space: Space = {
-      id: Date.now().toString(),
+      id: spaceId,
       name,
       members: [state.currentUser],
       createdAt: Date.now(),
     };
     
+    // Initialize space data
+    const initialSpaceData: SpaceData = {
+      items: [],
+      proposals: [],
+      categories: [],
+      rooms: defaultRooms,
+    };
+    
     setState(prev => ({ 
       ...prev, 
       currentSpace: space,
-      allSpaces: [...(prev.allSpaces || []), space]
+      allSpaces: [...(prev.allSpaces || []), space],
+      spaceData: {
+        ...prev.spaceData,
+        [spaceId]: initialSpaceData,
+      },
     }));
   }, [state.currentUser]);
 
@@ -231,11 +239,25 @@ export const [AppProvider, useApp] = createContextHook(() => {
           members: [...(space.members || []), state.currentUser!],
         };
         
-        setState(prev => ({
-          ...prev,
-          currentSpace: updatedSpace,
-          allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
-        }));
+        setState(prev => {
+          // Initialize space data if it doesn't exist
+          const spaceData = prev.spaceData[space.id] || {
+            items: [],
+            proposals: [],
+            categories: [],
+            rooms: defaultRooms,
+          };
+          
+          return {
+            ...prev,
+            currentSpace: updatedSpace,
+            allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
+            spaceData: {
+              ...prev.spaceData,
+              [space.id]: spaceData,
+            },
+          };
+        });
         
         addNotification({
           type: 'joined',
@@ -283,11 +305,25 @@ export const [AppProvider, useApp] = createContextHook(() => {
             pendingInvites: (space.pendingInvites || []).filter(inv => inv.code !== code),
           };
           
-          setState(prev => ({
-            ...prev,
-            currentSpace: updatedSpace,
-            allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
-          }));
+          setState(prev => {
+            // Initialize space data if it doesn't exist
+            const spaceData = prev.spaceData[space.id] || {
+              items: [],
+              proposals: [],
+              categories: [],
+              rooms: defaultRooms,
+            };
+            
+            return {
+              ...prev,
+              currentSpace: updatedSpace,
+              allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
+              spaceData: {
+                ...prev.spaceData,
+                [space.id]: spaceData,
+              },
+            };
+          });
           
           addNotification({
             type: 'joined',
@@ -303,17 +339,30 @@ export const [AppProvider, useApp] = createContextHook(() => {
     // If no space found, create a mock space for demo purposes
     // In production, this would query the backend for the space
     if (code.match(/^[A-Z0-9]{4}$/)) {
+      const spaceId = `space_${code}_${Date.now()}`;
       const mockSpace: Space = {
-        id: `space_${code}_${Date.now()}`,
+        id: spaceId,
         name: `Gemeinsamer Space ${code}`,
         members: [state.currentUser!],
         createdAt: Date.now(),
+      };
+      
+      // Initialize space data
+      const initialSpaceData: SpaceData = {
+        items: [],
+        proposals: [],
+        categories: [],
+        rooms: defaultRooms,
       };
       
       setState(prev => ({
         ...prev,
         currentSpace: mockSpace,
         allSpaces: [...(prev.allSpaces || []), mockSpace],
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: initialSpaceData,
+        },
       }));
       
       addNotification({
@@ -334,6 +383,14 @@ export const [AppProvider, useApp] = createContextHook(() => {
     return false;
   }, [state.currentUser, state.allSpaces, state.currentSpace, addNotification]);
 
+  // Helper to get current space data
+  const getCurrentSpaceData = useCallback((): SpaceData => {
+    if (!state.currentSpace) {
+      return { items: [], proposals: [], categories: [], rooms: defaultRooms };
+    }
+    return state.spaceData[state.currentSpace.id] || { items: [], proposals: [], categories: [], rooms: defaultRooms };
+  }, [state.currentSpace, state.spaceData]);
+
   // Item functions
   const addItem = useCallback((
     title: string,
@@ -345,15 +402,16 @@ export const [AppProvider, useApp] = createContextHook(() => {
     roomId?: string,
     asProposal: boolean = true
   ) => {
-    if (!state.currentUser) return;
+    if (!state.currentUser || !state.currentSpace) return;
     
+    const currentSpaceData = getCurrentSpaceData();
     const detected = detectCategory(title);
     const finalCategoryName = categoryName || detected.categoryName;
     const finalRoomId = roomId || detected.roomId;
     const icon = detected.icon;
     
-    // Find or create category
-    let category = (state.categories || []).find(c => c.name === finalCategoryName);
+    // Find or create category in current space
+    let category = currentSpaceData.categories.find(c => c.name === finalCategoryName);
     if (!category) {
       category = {
         id: Date.now().toString(),
@@ -362,10 +420,6 @@ export const [AppProvider, useApp] = createContextHook(() => {
         itemCount: 0,
         icon,
       };
-      setState(prev => ({
-        ...prev,
-        categories: [...(prev.categories || []), category!],
-      }));
     }
     
     const item: Item = {
@@ -384,29 +438,47 @@ export const [AppProvider, useApp] = createContextHook(() => {
       updatedAt: Date.now(),
     };
     
-    setState(prev => ({
-      ...prev,
-      items: [...(prev.items || []), item],
-      categories: (prev.categories || []).map(c => 
-        c.id === category!.id 
-          ? { ...c, itemCount: c.itemCount + 1 }
-          : c
-      ),
-    }));
-    
-    // Proposals will be handled by real backend in production
-    // For now, items are added directly without proposal system
+    setState(prev => {
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId] || { items: [], proposals: [], categories: [], rooms: defaultRooms };
+      
+      const updatedCategories = currentData.categories.find(c => c.id === category!.id)
+        ? currentData.categories.map(c => 
+            c.id === category!.id 
+              ? { ...c, itemCount: c.itemCount + 1 }
+              : c
+          )
+        : [...currentData.categories, { ...category!, itemCount: 1 }];
+      
+      return {
+        ...prev,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            items: [...currentData.items, item],
+            categories: updatedCategories,
+          },
+        },
+      };
+    });
     
     return item;
-  }, [state.currentUser, state.categories]);
+  }, [state.currentUser, state.currentSpace, getCurrentSpaceData]);
 
   const deleteItem = useCallback((itemId: string) => {
+    if (!state.currentSpace) return;
+    
     setState(prev => {
-      const item = (prev.items || []).find(i => i.id === itemId);
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId];
+      if (!currentData) return prev;
+      
+      const item = currentData.items.find(i => i.id === itemId);
       if (!item) return prev;
       
-      const updatedItems = (prev.items || []).filter(i => i.id !== itemId);
-      const updatedCategories = (prev.categories || []).map(c => 
+      const updatedItems = currentData.items.filter(i => i.id !== itemId);
+      const updatedCategories = currentData.categories.map(c => 
         c.id === item.categoryId 
           ? { ...c, itemCount: Math.max(0, c.itemCount - 1) }
           : c
@@ -414,55 +486,85 @@ export const [AppProvider, useApp] = createContextHook(() => {
       
       return {
         ...prev,
-        items: updatedItems,
-        categories: updatedCategories,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            items: updatedItems,
+            categories: updatedCategories,
+          },
+        },
       };
     });
-  }, []);
+  }, [state.currentSpace]);
 
   const deleteRoom = useCallback((roomId: string) => {
+    if (!state.currentSpace) return;
+    
     setState(prev => {
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId];
+      if (!currentData) return prev;
+      
       // Remove all items in this room
-      const updatedItems = (prev.items || []).filter(i => i.roomId !== roomId);
+      const updatedItems = currentData.items.filter(i => i.roomId !== roomId);
       // Remove all categories in this room
-      const updatedCategories = (prev.categories || []).filter(c => c.roomId !== roomId);
+      const updatedCategories = currentData.categories.filter(c => c.roomId !== roomId);
       // Remove the room
-      const updatedRooms = (prev.rooms || []).filter(r => r.id !== roomId);
+      const updatedRooms = currentData.rooms.filter(r => r.id !== roomId);
       
       return {
         ...prev,
-        items: updatedItems,
-        categories: updatedCategories,
-        rooms: updatedRooms,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            items: updatedItems,
+            categories: updatedCategories,
+            rooms: updatedRooms,
+          },
+        },
       };
     });
-  }, []);
+  }, [state.currentSpace]);
 
   const respondToProposal = useCallback((proposalId: string, response: 'accepted' | 'rejected' | 'later') => {
+    if (!state.currentSpace) return;
+    
     setState(prev => {
-      const proposal = (prev.proposals || []).find(p => p.id === proposalId);
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId];
+      if (!currentData) return prev;
+      
+      const proposal = currentData.proposals.find(p => p.id === proposalId);
       if (!proposal) return prev;
       
-      const updatedProposals = (prev.proposals || []).map(p => 
+      const updatedProposals = currentData.proposals.map(p => 
         p.id === proposalId 
           ? { ...p, status: response, respondedAt: Date.now() }
           : p
       );
       
       const updatedItems = response === 'accepted' 
-        ? (prev.items || []).map(i => 
+        ? currentData.items.map(i => 
             i.id === proposal.itemId 
               ? { ...i, status: 'accepted' as const, updatedAt: Date.now() }
               : i
           )
         : response === 'rejected'
-        ? (prev.items || []).filter(i => i.id !== proposal.itemId)
-        : (prev.items || []);
+        ? currentData.items.filter(i => i.id !== proposal.itemId)
+        : currentData.items;
       
       return {
         ...prev,
-        proposals: updatedProposals,
-        items: updatedItems,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            proposals: updatedProposals,
+            items: updatedItems,
+          },
+        },
       };
     });
     
@@ -473,64 +575,108 @@ export const [AppProvider, useApp] = createContextHook(() => {
       title: 'Antwort erhalten',
       message: `Dein Vorschlag wurde ${responseText}`,
     });
-  }, [addNotification]);
+  }, [state.currentSpace, addNotification]);
 
   const togglePriority = useCallback((itemId: string) => {
+    if (!state.currentSpace) return;
+    
     setState(prev => {
-      const priorityItems = (prev.items || []).filter(i => i.isPriority);
-      const item = (prev.items || []).find(i => i.id === itemId);
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId];
+      if (!currentData) return prev;
+      
+      const priorityItems = currentData.items.filter(i => i.isPriority);
+      const item = currentData.items.find(i => i.id === itemId);
       
       if (!item) return prev;
       
+      let updatedItems;
       if (item.isPriority) {
         // Remove from priority
-        return {
-          ...prev,
-          items: (prev.items || []).map(i => 
-            i.id === itemId 
-              ? { ...i, isPriority: false, priorityLevel: undefined }
-              : i.priorityLevel && i.priorityLevel > (item.priorityLevel || 0)
-              ? { ...i, priorityLevel: i.priorityLevel - 1 }
-              : i
-          ),
-        };
+        updatedItems = currentData.items.map(i => 
+          i.id === itemId 
+            ? { ...i, isPriority: false, priorityLevel: undefined }
+            : i.priorityLevel && i.priorityLevel > (item.priorityLevel || 0)
+            ? { ...i, priorityLevel: i.priorityLevel - 1 }
+            : i
+        );
       } else if (priorityItems.length < 5) {
         // Add to priority
-        return {
-          ...prev,
-          items: (prev.items || []).map(i => 
-            i.id === itemId 
-              ? { ...i, isPriority: true, priorityLevel: priorityItems.length + 1 }
-              : i
-          ),
-        };
+        updatedItems = currentData.items.map(i => 
+          i.id === itemId 
+            ? { ...i, isPriority: true, priorityLevel: priorityItems.length + 1 }
+            : i
+        );
+      } else {
+        return prev;
       }
       
-      return prev;
+      return {
+        ...prev,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            items: updatedItems,
+          },
+        },
+      };
     });
-  }, []);
+  }, [state.currentSpace]);
 
   const toggleFavorite = useCallback((itemId: string) => {
-    setState(prev => ({
-      ...prev,
-      items: (prev.items || []).map(i => 
+    if (!state.currentSpace) return;
+    
+    setState(prev => {
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId];
+      if (!currentData) return prev;
+      
+      const updatedItems = currentData.items.map(i => 
         i.id === itemId 
           ? { ...i, isFavorite: !i.isFavorite }
           : i
-      ),
-    }));
-  }, []);
+      );
+      
+      return {
+        ...prev,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            items: updatedItems,
+          },
+        },
+      };
+    });
+  }, [state.currentSpace]);
 
   const updateRoomBudget = useCallback((roomId: string, budget: number) => {
-    setState(prev => ({
-      ...prev,
-      rooms: (prev.rooms || []).map(r => 
+    if (!state.currentSpace) return;
+    
+    setState(prev => {
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId];
+      if (!currentData) return prev;
+      
+      const updatedRooms = currentData.rooms.map(r => 
         r.id === roomId 
           ? { ...r, budget }
           : r
-      ),
-    }));
-  }, []);
+      );
+      
+      return {
+        ...prev,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            rooms: updatedRooms,
+          },
+        },
+      };
+    });
+  }, [state.currentSpace]);
 
 
 
@@ -551,6 +697,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
   }, []);
 
   const addRoom = useCallback((name: string, icon: string, color: string) => {
+    if (!state.currentSpace) return;
+    
     const room: Room = {
       id: Date.now().toString(),
       name,
@@ -560,13 +708,25 @@ export const [AppProvider, useApp] = createContextHook(() => {
       spent: 0,
     };
     
-    setState(prev => ({
-      ...prev,
-      rooms: [...(prev.rooms || []), room],
-    }));
+    setState(prev => {
+      const spaceId = prev.currentSpace!.id;
+      const currentData = prev.spaceData[spaceId];
+      if (!currentData) return prev;
+      
+      return {
+        ...prev,
+        spaceData: {
+          ...prev.spaceData,
+          [spaceId]: {
+            ...currentData,
+            rooms: [...currentData.rooms, room],
+          },
+        },
+      };
+    });
     
     return room;
-  }, []);
+  }, [state.currentSpace]);
 
   // Clean up expired invites
   const cleanupExpiredInvites = useCallback(() => {
@@ -590,7 +750,25 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const switchSpace = useCallback((spaceId: string) => {
     const space = (state.allSpaces || []).find(s => s.id === spaceId);
     if (space) {
-      setState(prev => ({ ...prev, currentSpace: space }));
+      setState(prev => {
+        // Initialize space data if it doesn't exist
+        const spaceData = prev.spaceData[spaceId] || {
+          items: [],
+          proposals: [],
+          categories: [],
+          rooms: defaultRooms,
+        };
+        
+        return {
+          ...prev,
+          currentSpace: space,
+          spaceData: {
+            ...prev.spaceData,
+            [spaceId]: spaceData,
+          },
+        };
+      });
+      
       addNotification({
         type: 'info',
         title: 'Space gewechselt',
@@ -674,28 +852,35 @@ export const [AppProvider, useApp] = createContextHook(() => {
     return true;
   }, [state.currentSpace, state.currentUser, addNotification]);
 
-  // Computed values
+  // Computed values for current space
+  const currentSpaceData = useMemo(() => getCurrentSpaceData(), [getCurrentSpaceData]);
+  
   const priorityItems = useMemo(() => 
-    (state.items || [])
+    currentSpaceData.items
       .filter(i => i.isPriority && i.status === 'accepted')
       .sort((a, b) => (a.priorityLevel || 0) - (b.priorityLevel || 0)),
-    [state.items]
+    [currentSpaceData.items]
   );
 
   const pendingProposals = useMemo(() => 
-    (state.proposals || []).filter(p => p.status === 'pending'),
-    [state.proposals]
+    currentSpaceData.proposals.filter(p => p.status === 'pending'),
+    [currentSpaceData.proposals]
   );
 
   const acceptedItems = useMemo(() => 
-    (state.items || []).filter(i => i.status === 'accepted'),
-    [state.items]
+    currentSpaceData.items.filter(i => i.status === 'accepted'),
+    [currentSpaceData.items]
   );
 
   const favoriteItems = useMemo(() => 
-    (state.items || []).filter(i => i.isFavorite),
-    [state.items]
+    currentSpaceData.items.filter(i => i.isFavorite),
+    [currentSpaceData.items]
   );
+  
+  const items = useMemo(() => currentSpaceData.items, [currentSpaceData.items]);
+  const categories = useMemo(() => currentSpaceData.categories, [currentSpaceData.categories]);
+  const rooms = useMemo(() => currentSpaceData.rooms, [currentSpaceData.rooms]);
+  const proposals = useMemo(() => currentSpaceData.proposals, [currentSpaceData.proposals]);
 
   const unreadNotifications = useMemo(() => 
     (state.notifications || []).filter(n => !n.read).length,
@@ -718,6 +903,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
 
   return {
     ...state,
+    items,
+    categories,
+    rooms,
+    proposals,
     signIn,
     signOut,
     createSpace,

@@ -10,6 +10,12 @@ export default function HomeLayout() {
       <Stack.Screen
         name="index"
         options={{
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="home"
+        options={{
           title: 'Wohnideen',
           headerRight: () => (
             <TouchableOpacity
