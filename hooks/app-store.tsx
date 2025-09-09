@@ -800,6 +800,41 @@ export const [AppProvider, useApp] = createContextHook(() => {
     return false;
   }, [state.allSpaces, addNotification]);
 
+  const leaveSpace = useCallback((spaceId: string) => {
+    if ((state.allSpaces || []).length <= 1) {
+      return false; // Can't leave the last space
+    }
+    
+    const space = (state.allSpaces || []).find(s => s.id === spaceId);
+    if (!space) return false;
+    
+    setState(prev => {
+      const remainingSpaces = (prev.allSpaces || []).filter(s => s.id !== spaceId);
+      const updatedSpaceData = { ...prev.spaceData };
+      delete updatedSpaceData[spaceId]; // Remove space data
+      
+      // If leaving current space, switch to first remaining space
+      const newCurrentSpace = prev.currentSpace?.id === spaceId 
+        ? remainingSpaces[0] || null
+        : prev.currentSpace;
+      
+      return {
+        ...prev,
+        currentSpace: newCurrentSpace,
+        allSpaces: remainingSpaces,
+        spaceData: updatedSpaceData,
+      };
+    });
+    
+    addNotification({
+      type: 'info',
+      title: 'Space verlassen',
+      message: `Du hast den Space "${space.name}" verlassen.`,
+    });
+    
+    return true;
+  }, [state.allSpaces, state.currentSpace, addNotification]);
+
   // Clean up expired invites every minute
   useEffect(() => {
     const interval = setInterval(cleanupExpiredInvites, 60000);
@@ -934,6 +969,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     generateInviteCode,
     joinSpace,
     switchSpace,
+    leaveSpace,
     addItem,
     deleteItem,
     deleteRoom,
