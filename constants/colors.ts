@@ -4,6 +4,7 @@ export interface ColorScheme {
   success: string;
   warning: string;
   danger: string;
+  error: string;
   
   background: string;
   surface: string;
@@ -39,6 +40,7 @@ export const LightColors: ColorScheme = {
   success: '#34C759',
   warning: '#FF9500',
   danger: '#FF3B30',
+  error: '#FF3B30',
   
   background: '#F2F2F7',
   surface: '#FFFFFF',
@@ -74,6 +76,7 @@ export const DarkColors: ColorScheme = {
   success: '#30D158',
   warning: '#FF9F0A',
   danger: '#FF453A',
+  error: '#FF453A',
   
   background: '#000000',
   surface: '#1C1C1E',

@@ -5,56 +5,89 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from 'react-native';
-import { Star, Check } from 'lucide-react-native';
+import { Star, Check, Trash2 } from 'lucide-react-native';
 import { Item } from '@/types';
-import { Colors } from '@/constants/colors';
+import { useApp } from '@/hooks/app-store';
 
 interface ItemCardProps {
   item: Item;
   onPress: () => void;
   onToggleFavorite?: () => void;
+  onDelete?: () => void;
   showStatus?: boolean;
 }
 
-export function ItemCard({ item, onPress, onToggleFavorite, showStatus = true }: ItemCardProps) {
+export function ItemCard({ item, onPress, onToggleFavorite, onDelete, showStatus = true }: ItemCardProps) {
+  const { colors } = useApp();
+  
+  const handleDelete = () => {
+    Alert.alert(
+      'Artikel löschen',
+      `Möchtest du "${item.title}" wirklich löschen?`,
+      [
+        {
+          text: 'Abbrechen',
+          style: 'cancel',
+        },
+        {
+          text: 'Löschen',
+          style: 'destructive',
+          onPress: onDelete,
+        },
+      ]
+    );
+  };
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
-      <Image source={{ uri: item.imageUrl }} style={styles.image} />
+    <TouchableOpacity style={[styles.container, { backgroundColor: colors.surface }]} onPress={onPress} activeOpacity={0.7}>
+      <Image source={{ uri: item.imageUrl }} style={[styles.image, { backgroundColor: colors.border }]} />
       
       {showStatus && item.status === 'pending' && (
-        <View style={[styles.statusBadge, { backgroundColor: Colors.warning }]}>
+        <View style={[styles.statusBadge, { backgroundColor: colors.warning }]}>
           <Text style={styles.statusText}>Ausstehend</Text>
         </View>
       )}
       
       {showStatus && item.status === 'accepted' && (
-        <View style={[styles.statusBadge, { backgroundColor: Colors.success }]}>
+        <View style={[styles.statusBadge, { backgroundColor: colors.success }]}>
           <Check size={12} color="white" />
         </View>
       )}
       
-      {onToggleFavorite && (
-        <TouchableOpacity style={styles.favoriteButton} onPress={onToggleFavorite}>
-          <Star
-            size={20}
-            color={item.isFavorite ? Colors.warning : Colors.textSecondary}
-            fill={item.isFavorite ? Colors.warning : 'transparent'}
-          />
-        </TouchableOpacity>
-      )}
+      <View style={styles.actionButtons}>
+        {onToggleFavorite && (
+          <TouchableOpacity style={styles.favoriteButton} onPress={onToggleFavorite}>
+            <Star
+              size={20}
+              color={item.isFavorite ? colors.warning : colors.textSecondary}
+              fill={item.isFavorite ? colors.warning : 'transparent'}
+            />
+          </TouchableOpacity>
+        )}
+        
+        {onDelete && (
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <Trash2
+              size={18}
+              color={colors.error}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
       
       <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
         {item.description && (
-          <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+          <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={2}>{item.description}</Text>
         )}
         <View style={styles.footer}>
           {item.price && (
-            <Text style={styles.price}>€{item.price.toFixed(2)}</Text>
+            <Text style={[styles.price, { color: colors.text }]}>€{item.price.toFixed(2)}</Text>
           )}
           {item.shop && (
-            <Text style={styles.shop} numberOfLines={1}>{item.shop}</Text>
+            <Text style={[styles.shop, { color: colors.textSecondary }]} numberOfLines={1}>{item.shop}</Text>
           )}
         </View>
       </View>
@@ -64,7 +97,6 @@ export function ItemCard({ item, onPress, onToggleFavorite, showStatus = true }:
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -76,7 +108,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 150,
-    backgroundColor: Colors.border,
   },
   statusBadge: {
     position: 'absolute',
@@ -94,10 +125,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
   },
-  favoriteButton: {
+  actionButtons: {
     position: 'absolute',
     top: 8,
     right: 8,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  favoriteButton: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  deleteButton: {
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 8,
@@ -113,12 +158,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.text,
     marginBottom: 4,
   },
   description: {
     fontSize: 12,
-    color: Colors.textSecondary,
     marginBottom: 8,
     lineHeight: 16,
   },
@@ -130,11 +173,9 @@ const styles = StyleSheet.create({
   price: {
     fontSize: 16,
     fontWeight: '700',
-    color: Colors.text,
   },
   shop: {
     fontSize: 12,
-    color: Colors.textSecondary,
     flex: 1,
     marginLeft: 8,
     textAlign: 'right',

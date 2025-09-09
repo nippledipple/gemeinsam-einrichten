@@ -25,6 +25,7 @@ import {
   Smartphone,
   ChevronRight,
   Users,
+  RefreshCw,
 } from 'lucide-react-native';
 import { useApp } from '@/hooks/app-store';
 
@@ -72,7 +73,9 @@ export default function OptionsScreen() {
     unreadNotifications, 
     favoriteItems,
     currentSpace,
+    allSpaces,
     generateInviteCode,
+    switchSpace,
   } = useApp();
 
   const handleInvite = () => {
@@ -97,6 +100,40 @@ export default function OptionsScreen() {
 
   const handleJoinSpace = () => {
     router.push('/(tabs)/options/join-space');
+  };
+  
+  const handleSwitchSpace = () => {
+    if (allSpaces.length <= 1) {
+      Alert.alert(
+        'Keine anderen Spaces',
+        'Du bist nur in einem Space. Tritt anderen Spaces bei, um zwischen ihnen zu wechseln.',
+        [
+          {
+            text: 'OK',
+          },
+          {
+            text: 'Space beitreten',
+            onPress: () => router.push('/(tabs)/options/join-space'),
+          },
+        ]
+      );
+      return;
+    }
+    
+    const otherSpaces = allSpaces.filter(s => s.id !== currentSpace?.id);
+    const options = otherSpaces.map(space => ({
+      text: space.name,
+      onPress: () => switchSpace(space.id),
+    }));
+    
+    Alert.alert(
+      'Space wechseln',
+      'Zu welchem Space möchtest du wechseln?',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        ...options,
+      ]
+    );
   };
 
   const handleShare = () => {
@@ -224,6 +261,15 @@ export default function OptionsScreen() {
             subtitle="Tritt einem weiteren Space bei"
             onPress={handleJoinSpace}
           />
+          
+          {allSpaces.length > 1 && (
+            <OptionItem
+              icon={<RefreshCw size={24} color={colors.primary} />}
+              title="Space wechseln"
+              subtitle={`Zwischen ${allSpaces.length} Spaces wechseln`}
+              onPress={handleSwitchSpace}
+            />
+          )}
         </View>
 
         {/* Content */}

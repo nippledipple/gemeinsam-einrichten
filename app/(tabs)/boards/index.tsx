@@ -15,7 +15,7 @@ import { RoomBudgetCard } from '@/components/RoomBudgetCard';
 import { BudgetEditModal } from '@/components/BudgetEditModal';
 
 export default function BoardsScreen() {
-  const { rooms, categories, acceptedItems, toggleFavorite, updateRoomBudget } = useApp();
+  const { rooms, categories, acceptedItems, toggleFavorite, updateRoomBudget, deleteItem, colors } = useApp();
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   const [budgetModalVisible, setBudgetModalVisible] = useState<boolean>(false);
   const [editingRoom, setEditingRoom] = useState<{ id: string; name: string; budget?: number } | null>(null);
@@ -52,12 +52,12 @@ export default function BoardsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Room Tabs */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.tabs}
+        style={[styles.tabs, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}
         contentContainerStyle={styles.tabsContent}
       >
         {roomTabs.map((room) => (
@@ -65,6 +65,7 @@ export default function BoardsScreen() {
             key={room.id || 'all'}
             style={[
               styles.tab,
+              { backgroundColor: selectedRoom === room.id ? colors.primary : colors.background },
               selectedRoom === room.id && styles.tabActive,
             ]}
             onPress={() => setSelectedRoom(room.id)}
@@ -72,6 +73,7 @@ export default function BoardsScreen() {
             <Text
               style={[
                 styles.tabText,
+                { color: selectedRoom === room.id ? 'white' : colors.text },
                 selectedRoom === room.id && styles.tabTextActive,
               ]}
             >
@@ -102,8 +104,8 @@ export default function BoardsScreen() {
         keyExtractor={(item) => item.id}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            <Text style={styles.sectionCount}>{section.data.length}</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
+            <Text style={[styles.sectionCount, { color: colors.textSecondary, backgroundColor: colors.background }]}>{section.data.length}</Text>
           </View>
         )}
         renderItem={({ item }) => (
@@ -112,6 +114,7 @@ export default function BoardsScreen() {
               item={item}
               onPress={() => {}}
               onToggleFavorite={() => toggleFavorite(item.id)}
+              onDelete={() => deleteItem(item.id)}
             />
           </View>
         )}
@@ -119,8 +122,8 @@ export default function BoardsScreen() {
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Keine Artikel</Text>
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>Keine Artikel</Text>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Füge Artikel hinzu, um sie hier zu sehen
             </Text>
           </View>
@@ -140,12 +143,9 @@ export default function BoardsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   tabs: {
-    backgroundColor: 'white',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
   },
   tabsContent: {
     paddingHorizontal: 16,
@@ -156,20 +156,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: Colors.background,
     marginRight: 8,
+    minWidth: 80,
+    alignItems: 'center',
   },
-  tabActive: {
-    backgroundColor: Colors.primary,
-  },
+  tabActive: {},
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: Colors.text,
   },
-  tabTextActive: {
-    color: 'white',
-  },
+  tabTextActive: {},
   budgetSection: {
     padding: 16,
   },

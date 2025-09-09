@@ -197,14 +197,15 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
     
     // Check all spaces for this code
-    for (const space of (state.allSpaces || [])) {
+    const allSpaces = state.allSpaces || [];
+    for (const space of allSpaces) {
       // Check if space has this code and it's not expired
       if (space.code === code && 
           space.codeExpiry && 
           Date.now() < space.codeExpiry) {
         
         // Check if user is already a member
-        const isAlreadyMember = space.members.some(m => m.id === state.currentUser!.id);
+        const isAlreadyMember = (space.members || []).some(m => m.id === state.currentUser!.id);
         if (isAlreadyMember) {
           // Switch to this space if not current
           if (state.currentSpace?.id !== space.id) {
@@ -227,7 +228,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         // Add user to space and update both allSpaces and currentSpace
         const updatedSpace = {
           ...space,
-          members: [...space.members, state.currentUser!],
+          members: [...(space.members || []), state.currentUser!],
         };
         
         setState(prev => ({
@@ -246,7 +247,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       }
       
       // Check if there's a pending invite with this code in this space
-      if (space.pendingInvites) {
+      if (space.pendingInvites && space.pendingInvites.length > 0) {
         const validInvite = space.pendingInvites.find(invite => 
           invite.code === code && 
           Date.now() < invite.expiry &&
@@ -255,7 +256,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         
         if (validInvite) {
           // Check if user is already a member
-          const isAlreadyMember = space.members.some(m => m.id === state.currentUser!.id);
+          const isAlreadyMember = (space.members || []).some(m => m.id === state.currentUser!.id);
           if (isAlreadyMember) {
             // Switch to this space if not current
             if (state.currentSpace?.id !== space.id) {
@@ -278,8 +279,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
           // Add user to space and remove the used invite
           const updatedSpace = {
             ...space,
-            members: [...space.members, state.currentUser!],
-            pendingInvites: space.pendingInvites?.filter(inv => inv.code !== code) || [],
+            members: [...(space.members || []), state.currentUser!],
+            pendingInvites: (space.pendingInvites || []).filter(inv => inv.code !== code),
           };
           
           setState(prev => ({
@@ -304,7 +305,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     if (code.match(/^[A-Z0-9]{4}$/)) {
       const mockSpace: Space = {
         id: `space_${code}_${Date.now()}`,
-        name: `Space ${code}`,
+        name: `Gemeinsamer Space ${code}`,
         members: [state.currentUser!],
         createdAt: Date.now(),
       };
@@ -398,6 +399,44 @@ export const [AppProvider, useApp] = createContextHook(() => {
     
     return item;
   }, [state.currentUser, state.categories]);
+
+  const deleteItem = useCallback((itemId: string) => {
+    setState(prev => {
+      const item = (prev.items || []).find(i => i.id === itemId);
+      if (!item) return prev;
+      
+      const updatedItems = (prev.items || []).filter(i => i.id !== itemId);
+      const updatedCategories = (prev.categories || []).map(c => 
+        c.id === item.categoryId 
+          ? { ...c, itemCount: Math.max(0, c.itemCount - 1) }
+          : c
+      );
+      
+      return {
+        ...prev,
+        items: updatedItems,
+        categories: updatedCategories,
+      };
+    });
+  }, []);
+
+  const deleteRoom = useCallback((roomId: string) => {
+    setState(prev => {
+      // Remove all items in this room
+      const updatedItems = (prev.items || []).filter(i => i.roomId !== roomId);
+      // Remove all categories in this room
+      const updatedCategories = (prev.categories || []).filter(c => c.roomId !== roomId);
+      // Remove the room
+      const updatedRooms = (prev.rooms || []).filter(r => r.id !== roomId);
+      
+      return {
+        ...prev,
+        items: updatedItems,
+        categories: updatedCategories,
+        rooms: updatedRooms,
+      };
+    });
+  }, []);
 
   const respondToProposal = useCallback((proposalId: string, response: 'accepted' | 'rejected' | 'later') => {
     setState(prev => {
@@ -539,8 +578,28 @@ export const [AppProvider, useApp] = createContextHook(() => {
           Date.now() < invite.expiry
         ),
       } : null,
+      allSpaces: (prev.allSpaces || []).map(space => ({
+        ...space,
+        pendingInvites: (space.pendingInvites || []).filter(invite => 
+          Date.now() < invite.expiry
+        ),
+      })),
     }));
   }, []);
+
+  const switchSpace = useCallback((spaceId: string) => {
+    const space = (state.allSpaces || []).find(s => s.id === spaceId);
+    if (space) {
+      setState(prev => ({ ...prev, currentSpace: space }));
+      addNotification({
+        type: 'info',
+        title: 'Space gewechselt',
+        message: `Du bist zu "${space.name}" gewechselt.`,
+      });
+      return true;
+    }
+    return false;
+  }, [state.allSpaces, addNotification]);
 
   // Clean up expired invites every minute
   useEffect(() => {
@@ -561,7 +620,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     }
     
     // Check if user is already a member
-    const isAlreadyMember = state.currentSpace.members.some(m => m.email.toLowerCase() === email.toLowerCase());
+    const isAlreadyMember = (state.currentSpace.members || []).some(m => m.email.toLowerCase() === email.toLowerCase());
     if (isAlreadyMember) {
       addNotification({
         type: 'info',
@@ -590,6 +649,20 @@ export const [AppProvider, useApp] = createContextHook(() => {
           }
         ],
       } : null,
+      allSpaces: (prev.allSpaces || []).map(s => 
+        s.id === prev.currentSpace?.id ? {
+          ...s,
+          pendingInvites: [
+            ...(s.pendingInvites || []),
+            {
+              email,
+              code: inviteCode,
+              expiry,
+              invitedBy: state.currentUser!.id,
+            }
+          ],
+        } : s
+      ),
     }));
     
     addNotification({
@@ -650,7 +723,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
     createSpace,
     generateInviteCode,
     joinSpace,
+    switchSpace,
     addItem,
+    deleteItem,
+    deleteRoom,
     respondToProposal,
     togglePriority,
     toggleFavorite,
