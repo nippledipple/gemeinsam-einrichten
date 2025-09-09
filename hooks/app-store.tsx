@@ -992,24 +992,24 @@ export const [AppProvider, useApp] = createContextHook(() => {
   const currentSpaceData = useMemo(() => getCurrentSpaceData(), [getCurrentSpaceData]);
   
   const priorityItems = useMemo(() => 
-    currentSpaceData.items
+    (currentSpaceData.items || [])
       .filter(i => i.isPriority && i.status === 'accepted')
       .sort((a, b) => (a.priorityLevel || 0) - (b.priorityLevel || 0)),
     [currentSpaceData.items]
   );
 
   const pendingProposals = useMemo(() => 
-    currentSpaceData.proposals.filter(p => p.status === 'pending'),
+    (currentSpaceData.proposals || []).filter(p => p.status === 'pending'),
     [currentSpaceData.proposals]
   );
 
   const acceptedItems = useMemo(() => 
-    currentSpaceData.items.filter(i => i.status === 'accepted'),
+    (currentSpaceData.items || []).filter(i => i.status === 'accepted'),
     [currentSpaceData.items]
   );
 
   const favoriteItems = useMemo(() => 
-    currentSpaceData.items.filter(i => i.isFavorite),
+    (currentSpaceData.items || []).filter(i => i.isFavorite),
     [currentSpaceData.items]
   );
   
@@ -1038,7 +1038,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
   }, [state.isDarkMode, systemColorScheme]);
 
   return {
-    ...state,
+    ...(state || {}),
     items,
     categories,
     rooms,
