@@ -151,7 +151,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       items: [],
       proposals: [],
       categories: [],
-      rooms: defaultRooms,
+      rooms: [...defaultRooms], // Create a copy to avoid reference issues
     };
     
     setState(prev => ({ 
@@ -314,10 +314,13 @@ export const [AppProvider, useApp] = createContextHook(() => {
               rooms: defaultRooms,
             };
             
+            // Update both allSpaces and currentSpace
+            const updatedAllSpaces = (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s);
+            
             return {
               ...prev,
               currentSpace: updatedSpace,
-              allSpaces: (prev.allSpaces || []).map(s => s.id === space.id ? updatedSpace : s),
+              allSpaces: updatedAllSpaces.includes(updatedSpace) ? updatedAllSpaces : [...updatedAllSpaces, updatedSpace],
               spaceData: {
                 ...prev.spaceData,
                 [space.id]: spaceData,
@@ -355,15 +358,23 @@ export const [AppProvider, useApp] = createContextHook(() => {
         rooms: defaultRooms,
       };
       
-      setState(prev => ({
-        ...prev,
-        currentSpace: mockSpace,
-        allSpaces: [...(prev.allSpaces || []), mockSpace],
-        spaceData: {
-          ...prev.spaceData,
-          [spaceId]: initialSpaceData,
-        },
-      }));
+      // Check if we already have a space with this code pattern
+      const existingSpace = (state.allSpaces || []).find(s => s.id.includes(`space_${code}_`));
+      
+      if (existingSpace) {
+        // Switch to existing space instead of creating a new one
+        setState(prev => ({ ...prev, currentSpace: existingSpace }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          currentSpace: mockSpace,
+          allSpaces: [...(prev.allSpaces || []), mockSpace],
+          spaceData: {
+            ...prev.spaceData,
+            [spaceId]: initialSpaceData,
+          },
+        }));
+      }
       
       addNotification({
         type: 'joined',
@@ -386,9 +397,15 @@ export const [AppProvider, useApp] = createContextHook(() => {
   // Helper to get current space data
   const getCurrentSpaceData = useCallback((): SpaceData => {
     if (!state.currentSpace) {
-      return { items: [], proposals: [], categories: [], rooms: defaultRooms };
+      return { items: [], proposals: [], categories: [], rooms: [...defaultRooms] };
     }
-    return state.spaceData[state.currentSpace.id] || { items: [], proposals: [], categories: [], rooms: defaultRooms };
+    const data = state.spaceData[state.currentSpace.id];
+    return {
+      items: data?.items || [],
+      proposals: data?.proposals || [],
+      categories: data?.categories || [],
+      rooms: data?.rooms || [...defaultRooms],
+    };
   }, [state.currentSpace, state.spaceData]);
 
   // Item functions
@@ -448,7 +465,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
               ? { ...c, itemCount: c.itemCount + 1 }
               : c
           )
-        : [...currentData.categories, { ...category!, itemCount: 1 }];
+        : [...(currentData.categories || []), { ...category!, itemCount: 1 }];
       
       return {
         ...prev,
@@ -456,7 +473,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           ...prev.spaceData,
           [spaceId]: {
             ...currentData,
-            items: [...currentData.items, item],
+            items: [...(currentData.items || []), item],
             categories: updatedCategories,
           },
         },
@@ -474,15 +491,18 @@ export const [AppProvider, useApp] = createContextHook(() => {
       const currentData = prev.spaceData[spaceId];
       if (!currentData) return prev;
       
-      const item = currentData.items.find(i => i.id === itemId);
+      const item = (currentData.items || []).find(i => i.id === itemId);
       if (!item) return prev;
       
-      const updatedItems = currentData.items.filter(i => i.id !== itemId);
-      const updatedCategories = currentData.categories.map(c => 
+      const updatedItems = (currentData.items || []).filter(i => i.id !== itemId);
+      const updatedCategories = (currentData.categories || []).map(c => 
         c.id === item.categoryId 
           ? { ...c, itemCount: Math.max(0, c.itemCount - 1) }
           : c
-      );
+      ).filter(c => c.itemCount > 0); // Remove empty categories
+      
+      // Also remove from proposals if it exists
+      const updatedProposals = (currentData.proposals || []).filter(p => p.itemId !== itemId);
       
       return {
         ...prev,
@@ -492,6 +512,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
             ...currentData,
             items: updatedItems,
             categories: updatedCategories,
+            proposals: updatedProposals,
           },
         },
       };
@@ -719,7 +740,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           ...prev.spaceData,
           [spaceId]: {
             ...currentData,
-            rooms: [...currentData.rooms, room],
+            rooms: [...(currentData.rooms || []), room],
           },
         },
       };

@@ -8,15 +8,17 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Mail, Copy, Share } from 'lucide-react-native';
+import { Mail, Copy, Share, Users } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useApp } from '@/hooks/app-store';
 
 export default function InviteScreen() {
-  const { colors, inviteToSpace, generateInviteCode, currentSpace } = useApp();
+  const { colors, inviteToSpace, generateInviteCode, currentSpace, joinSpace } = useApp();
   const [email, setEmail] = useState<string>('');
+  const [joinCode, setJoinCode] = useState<string>('');
 
   const handleEmailInvite = () => {
     if (!email.trim()) {
@@ -74,20 +76,40 @@ export default function InviteScreen() {
     }
   };
 
+  const handleJoinSpace = () => {
+    if (joinCode.length !== 4) {
+      Alert.alert('Fehler', 'Der Code muss 4 Zeichen lang sein');
+      return;
+    }
+    
+    const success = joinSpace(joinCode.toUpperCase());
+    if (success) {
+      setJoinCode('');
+      Alert.alert(
+        'Erfolgreich!',
+        'Du bist dem Space beigetreten.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      Alert.alert('Fehler', 'Ungültiger oder abgelaufener Code. Bitte überprüfe den Code oder frage nach einem neuen.');
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <KeyboardAvoidingView 
-        style={styles.content} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.section}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            Leute zu deinem Space einladen
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Lade Freunde, Familie oder Mitbewohner ein, um gemeinsam einzurichten.
-          </Text>
-        </View>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <KeyboardAvoidingView 
+          style={styles.content} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.section}>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Space-Verwaltung
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Lade andere ein oder tritt einem anderen Space bei.
+            </Text>
+          </View>
 
         {/* Email Invitation */}
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -173,18 +195,65 @@ export default function InviteScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.info}>
-          <Text style={[styles.infoText, { color: colors.textSecondary }]}>
-            💡 Tipp: Eingeladene Personen können Vorschläge machen und gemeinsam mit dir Prioritäten setzen.
-          </Text>
-        </View>
-      </KeyboardAvoidingView>
+          {/* Join Another Space */}
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={styles.cardHeader}>
+              <Users size={24} color={colors.primary} />
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                Anderem Space beitreten
+              </Text>
+            </View>
+            
+            <Text style={[styles.cardDescription, { color: colors.textSecondary }]}>
+              Hast du einen Einladungscode erhalten? Gib ihn hier ein.
+            </Text>
+            
+            <TextInput
+              style={[styles.input, styles.codeInput, { 
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                color: colors.text,
+              }]}
+              placeholder="ABCD"
+              placeholderTextColor={colors.textSecondary}
+              value={joinCode}
+              onChangeText={(text) => setJoinCode(text.toUpperCase())}
+              maxLength={4}
+              autoCapitalize="characters"
+            />
+            
+            <TouchableOpacity
+              style={[styles.button, styles.secondaryButton, { 
+                backgroundColor: joinCode.length === 4 ? colors.primary : colors.background,
+                borderColor: colors.primary,
+              }]}
+              onPress={handleJoinSpace}
+              disabled={joinCode.length !== 4}
+            >
+              <Text style={[styles.buttonText, { 
+                color: joinCode.length === 4 ? 'white' : colors.primary 
+              }]}>
+                Space beitreten
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.info}>
+            <Text style={[styles.infoText, { color: colors.textSecondary }]}>
+              💡 Tipp: Du kannst mehreren Spaces angehören und zwischen ihnen wechseln.
+            </Text>
+          </View>
+        </KeyboardAvoidingView>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  scrollView: {
     flex: 1,
   },
   content: {
@@ -252,6 +321,12 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
+  },
+  codeInput: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 8,
     textAlign: 'center',
   },
 });
