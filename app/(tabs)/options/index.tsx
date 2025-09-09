@@ -189,9 +189,14 @@ export default function OptionsScreen() {
     return isDarkTheme ? 'Dunkel' : 'Hell';
   };
 
-  const getThemeIcon = (): React.ReactNode => {
-    if (isDarkTheme === null) return <Smartphone size={24} color={colors.primary} />;
-    return isDarkTheme ? <Moon size={24} color={colors.primary} /> : <Sun size={24} color={colors.primary} />;
+  const getThemeIcon = () => {
+    if (isDarkTheme === null) {
+      return <Smartphone size={24} color={colors.primary} />;
+    }
+    if (isDarkTheme) {
+      return <Moon size={24} color={colors.primary} />;
+    }
+    return <Sun size={24} color={colors.primary} />;
   };
 
   return (
