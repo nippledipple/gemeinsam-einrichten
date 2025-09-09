@@ -22,6 +22,8 @@ interface AppState {
   notifications: Notification[];
   isLoading: boolean;
   isDarkMode: boolean | null; // null = system preference
+  isOnline: boolean; // Connection status
+  lastSyncTime: number | null; // Last successful sync timestamp
 }
 
 const STORAGE_KEY = 'wohnideen_app_state';
@@ -36,6 +38,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
     notifications: [],
     isLoading: true,
     isDarkMode: null,
+    isOnline: true, // Start as online for production
+    lastSyncTime: null,
   });
 
   // Load persisted state
@@ -122,10 +126,12 @@ export const [AppProvider, useApp] = createContextHook(() => {
           spaceData: (typeof parsed.spaceData === 'object' && parsed.spaceData !== null) ? parsed.spaceData : {},
           notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
           isDarkMode: parsed.isDarkMode || null,
+          isOnline: true,
+          lastSyncTime: Date.now(),
           isLoading: false,
         }));
       } else {
-        setState(prev => ({ ...prev, isLoading: false }));
+        setState(prev => ({ ...prev, isOnline: true, lastSyncTime: Date.now(), isLoading: false }));
       }
     } catch (error) {
       console.error('Failed to load state:', error);
@@ -135,7 +141,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       } catch (clearError) {
         console.error('Failed to clear storage:', clearError);
       }
-      setState(prev => ({ ...prev, isLoading: false }));
+      setState(prev => ({ ...prev, isOnline: true, lastSyncTime: Date.now(), isLoading: false }));
     }
   };
 
@@ -185,6 +191,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
       notifications: [],
       isLoading: false,
       isDarkMode: null,
+      isOnline: true,
+      lastSyncTime: null,
     });
   }, []);
 
@@ -291,7 +299,14 @@ export const [AppProvider, useApp] = createContextHook(() => {
         }));
       }
       
-      // Simulate network sync delay
+      // Update sync status
+      setState(prev => ({
+        ...prev,
+        isOnline: true,
+        lastSyncTime: Date.now(),
+      }));
+      
+      // Show sync notification
       setTimeout(() => {
         addNotification({
           type: 'info',
@@ -302,6 +317,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
       
     } catch (error) {
       console.error('Sync failed:', error);
+      setState(prev => ({
+        ...prev,
+        isOnline: false,
+      }));
       addNotification({
         type: 'error',
         title: 'Synchronisation fehlgeschlagen',
@@ -347,6 +366,8 @@ export const [AppProvider, useApp] = createContextHook(() => {
               currentSpace: updatedSpace,
               allSpaces: updatedAllSpaces,
               spaceData: updatedSpaceData,
+              isOnline: true,
+              lastSyncTime: Date.now(),
             };
           });
           
@@ -439,7 +460,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
         // Trigger automatic synchronization after joining
         setTimeout(() => {
           syncWithOtherDevices();
-        }, 1000);
+        }, 500);
         
         return true;
       }
@@ -514,7 +535,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
           // Trigger synchronization after joining
           setTimeout(() => {
             syncWithOtherDevices();
-          }, 1000);
+          }, 500);
           
           return true;
         }
@@ -563,6 +584,11 @@ export const [AppProvider, useApp] = createContextHook(() => {
         title: 'Space beigetreten',
         message: `Du bist dem Space "${mockSpace.name}" beigetreten!`,
       });
+      
+      // Trigger synchronization after joining mock space
+      setTimeout(() => {
+        syncWithOtherDevices();
+      }, 500);
       
       return true;
     }
@@ -1235,5 +1261,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
     colors,
     isDarkTheme,
     syncWithOtherDevices,
+    isOnline: state.isOnline,
+    lastSyncTime: state.lastSyncTime,
   };
 });

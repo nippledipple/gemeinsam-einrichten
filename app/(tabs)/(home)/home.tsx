@@ -15,7 +15,7 @@ import { ProposalBanner } from '@/components/ProposalBanner';
 import { PriorityCard } from '@/components/PriorityCard';
 
 export default function HomeScreen() {
-  const { currentSpace, priorityItems, pendingProposals, respondToProposal, togglePriority, colors } = useApp();
+  const { currentSpace, priorityItems, pendingProposals, respondToProposal, togglePriority, colors, isOnline, lastSyncTime } = useApp();
 
   const handleProposalResponse = (proposalId: string) => (response: 'accepted' | 'rejected' | 'later') => {
     respondToProposal(proposalId, response);
@@ -26,7 +26,7 @@ export default function HomeScreen() {
   };
 
   const memberCount = currentSpace?.members?.length || 1;
-  const isConnected = memberCount > 1; // Simulate connection status
+  const isConnected = isOnline && memberCount > 1;
 
 
 
@@ -109,7 +109,7 @@ export default function HomeScreen() {
         {/* Participant Status Bar */}
         <View style={styles.statusBar}>
           <View style={styles.statusIcon}>
-            {memberCount > 1 ? (
+            {isConnected ? (
               <Wifi size={16} color={colors.success} />
             ) : (
               <WifiOff size={16} color={colors.textSecondary} />
@@ -117,7 +117,7 @@ export default function HomeScreen() {
           </View>
           <Users size={16} color={colors.primary} style={styles.statusIcon} />
           <Text style={styles.statusText}>
-            {memberCount} Teilnehmer{memberCount !== 1 ? '' : ''} {memberCount > 1 ? '• Synchronisiert' : '• Offline'}
+            {memberCount} Teilnehmer{memberCount !== 1 ? '' : ''} {isConnected ? '• Live synchronisiert' : memberCount > 1 ? '• Verbindung wird hergestellt...' : '• Bereit für Einladungen'}
           </Text>
         </View>
 
