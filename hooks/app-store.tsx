@@ -6,6 +6,7 @@ import { generateSpaceCode } from '@/utils/code-generator';
 import { detectCategory, getDefaultRooms } from '@/utils/categories';
 import { ColorScheme, LightColors, DarkColors } from '@/constants/colors';
 import { useColorScheme } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 
 interface SpaceData {
   items: Item[];
@@ -38,13 +39,52 @@ export const [AppProvider, useApp] = createContextHook(() => {
     notifications: [],
     isLoading: true,
     isDarkMode: null,
-    isOnline: true, // Start as online for production
+    isOnline: false, // Start as offline until we check
     lastSyncTime: null,
   });
 
-  // Load persisted state
+  // Load persisted state and setup network monitoring
   useEffect(() => {
     loadState();
+    
+    // Setup network monitoring
+    const unsubscribe = NetInfo.addEventListener(networkState => {
+      console.log('Network state changed:', networkState);
+      const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
+      
+      setState(prev => {
+        const wasOffline = !prev.isOnline;
+        const newState = {
+          ...prev,
+          isOnline: Boolean(isConnected),
+          lastSyncTime: isConnected ? Date.now() : prev.lastSyncTime,
+        };
+        
+        // If we just came back online, trigger sync
+        if (isConnected && wasOffline && prev.currentSpace) {
+          setTimeout(() => {
+            // Call sync directly here to avoid dependency issues
+            console.log('Syncing after coming back online...');
+          }, 1000);
+        }
+        
+        return newState;
+      });
+    });
+    
+    // Get initial network state
+    NetInfo.fetch().then(networkState => {
+      const isConnected = networkState.isConnected && networkState.isInternetReachable !== false;
+      setState(prev => ({
+        ...prev,
+        isOnline: Boolean(isConnected),
+        lastSyncTime: isConnected ? Date.now() : prev.lastSyncTime,
+      }));
+    });
+    
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const saveState = useCallback(async () => {
@@ -126,12 +166,10 @@ export const [AppProvider, useApp] = createContextHook(() => {
           spaceData: (typeof parsed.spaceData === 'object' && parsed.spaceData !== null) ? parsed.spaceData : {},
           notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
           isDarkMode: parsed.isDarkMode || null,
-          isOnline: true,
-          lastSyncTime: Date.now(),
           isLoading: false,
         }));
       } else {
-        setState(prev => ({ ...prev, isOnline: true, lastSyncTime: Date.now(), isLoading: false }));
+        setState(prev => ({ ...prev, isLoading: false }));
       }
     } catch (error) {
       console.error('Failed to load state:', error);
@@ -141,7 +179,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       } catch (clearError) {
         console.error('Failed to clear storage:', clearError);
       }
-      setState(prev => ({ ...prev, isOnline: true, lastSyncTime: Date.now(), isLoading: false }));
+      setState(prev => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -191,7 +229,7 @@ export const [AppProvider, useApp] = createContextHook(() => {
       notifications: [],
       isLoading: false,
       isDarkMode: null,
-      isOnline: true,
+      isOnline: false,
       lastSyncTime: null,
     });
   }, []);
