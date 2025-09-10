@@ -1,3 +1,6 @@
+export const HEALTH_URL = 'https://y485kjs73qlaycog44fhb.rork.app/healthz';
+export const WSS_URL = 'wss://y485kjs73qlaycog44fhb.rork.app/realtime';
+
 // Backend Configuration
 export const API_CONFIG = {
   BASE_URL: 'https://y485kjs73qlaycog44fhb.rork.app',
@@ -15,7 +18,3 @@ export const WS_CONFIG = {
   HEARTBEAT_INTERVAL: 20000, // 20 seconds
   PRESENCE_TIMEOUT: 45000, // 45 seconds
 } as const;
-
-// URLs
-export const HEALTH_URL = `${API_CONFIG.BASE_URL}${API_CONFIG.HEALTH_ENDPOINT}`;
-export const WSS_URL = WS_CONFIG.URL;

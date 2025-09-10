@@ -57,12 +57,11 @@ class RealtimeService {
 
       try {
         this.socket = io(WSS_URL, {
-          path: WS_CONFIG.PATH,
+          path: '/realtime',
           transports: ['websocket'],
           reconnection: true,
-          reconnectionDelay: WS_CONFIG.RECONNECTION_DELAY,
-          reconnectionDelayMax: WS_CONFIG.RECONNECTION_DELAY_MAX,
-          reconnectionAttempts: WS_CONFIG.MAX_RECONNECTION_ATTEMPTS,
+          reconnectionDelay: 500,
+          reconnectionDelayMax: 5000,
           timeout: 8000,
         });
 
