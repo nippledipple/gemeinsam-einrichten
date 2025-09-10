@@ -313,19 +313,18 @@ console.log('🚀 Starting HTTP server...');
 // Startup logging
 console.log('🚀 Hono server starting on preview domain...');
 console.log(`🌐 HTTP Server will listen on 0.0.0.0:${PORT}`);
-console.log('📍 Registered routes:');
-console.log('  GET /__ping -> text/plain "pong"');
-console.log('  GET /healthz -> application/json {"status":"ok"}');
-console.log('  GET /api/healthz -> application/json {"status":"ok"}');
-console.log('  GET /api/ -> application/json {"status":"ok","message":"API is running"}');
-console.log('  POST /api/trpc/* -> tRPC endpoints');
-console.log('  GET /debug/routes -> application/json route list');
+console.log('📍 GET /__ping registered -> text/plain "pong"');
+console.log('📍 GET /healthz registered -> application/json {"status":"ok"}');
+console.log('📍 GET /debug/routes registered -> application/json route list');
+console.log('📍 GET /api/healthz registered -> application/json {"status":"ok"}');
+console.log('📍 GET /api/ registered -> application/json {"status":"ok","message":"API is running"}');
+console.log('📍 POST /api/trpc/* registered -> tRPC endpoints');
 console.log('🌐 Public domain: https://wohnideen-gemeinsam-einrichten.rork.app');
 console.log('📡 Socket.IO server running on port 3001 (path: /realtime)');
 console.log('\n🎯 EXPECTED PUBLIC ENDPOINTS:');
 console.log('📍 Ping: https://wohnideen-gemeinsam-einrichten.rork.app/__ping');
 console.log('🏥 Health: https://wohnideen-gemeinsam-einrichten.rork.app/healthz');
 console.log('🔍 Debug: https://wohnideen-gemeinsam-einrichten.rork.app/debug/routes');
-console.log('📡 WebSocket: wss://wohnideen-gemeinsam-einrichten.rork.app/realtime');
+console.log('📡 WebSocket: wss://wohnideen-gemeinsam-einrichten.rork.app/realtime')
 
 export default app;
