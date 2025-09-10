@@ -1,7 +1,7 @@
 // Backend Configuration
 export const API_CONFIG = {
   BASE_URL: 'https://api.rork.com',
-  HEALTH_ENDPOINT: '/api/healthz',
+  HEALTH_ENDPOINT: '/healthz',
   TIMEOUT: 3000,
 } as const;
 

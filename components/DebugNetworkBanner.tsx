@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useApp } from '@/hooks/app-store';
 import { pingOnce } from '@/utils/net/Pinger';
-import { WSS_URL } from '@/constants/config';
+import { WSS_URL, HEALTH_URL, WS_CONFIG } from '@/constants/config';
 import { realtimeService } from '@/utils/net/RealtimeService';
 
 interface NetworkDebugInfo {
@@ -170,7 +170,7 @@ export default function DebugNetworkBanner() {
         </Text>
         
         <Text style={styles.label}>Online:</Text>
-        <Text style={styles.value}>{isOnline ? 'true' : 'false'} (stable)</Text>
+        <Text style={styles.value}>{isOnline ? 'true' : 'false'}</Text>
         
         <Text style={styles.label}>WS:</Text>
         <Text style={styles.value}>{isRealtimeConnected ? 'connected' : 'disconnected'}</Text>
@@ -202,12 +202,12 @@ export default function DebugNetworkBanner() {
       
       <View style={styles.row}>
         <Text style={styles.label}>Health URL:</Text>
-        <Text style={styles.value} numberOfLines={1}>api.rork.com/api/healthz</Text>
+        <Text style={styles.value} numberOfLines={1}>{HEALTH_URL}</Text>
       </View>
       
       <View style={styles.row}>
         <Text style={styles.label}>WebSocket:</Text>
-        <Text style={styles.value} numberOfLines={1}>{WSS_URL}/realtime</Text>
+        <Text style={styles.value} numberOfLines={1}>{WSS_URL}{WS_CONFIG.PATH}</Text>
       </View>
       
       {(debugInfo.logs.length > 0 || debugInfo.wsEvents.length > 0) && (
