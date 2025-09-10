@@ -2,7 +2,7 @@ import { HEALTH_URL } from '@/constants/config';
 
 let inFlight = false;
 
-export async function pingOnce(timeoutMs = 3000): Promise<boolean> {
+export async function pingOnce(timeoutMs = 5000): Promise<boolean> {
   if (inFlight) return false; // Prevent overlapping pings
   inFlight = true;
   

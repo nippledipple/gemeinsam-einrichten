@@ -82,7 +82,7 @@ export default function DebugNetworkBanner() {
   // Perform ping test using centralized pinger
   useEffect(() => {
     const performPing = async () => {
-      const result = await pingOnce(3000);
+      const result = await pingOnce(5000);
       setDebugInfo(prev => ({
         ...prev,
         pingResult: result,

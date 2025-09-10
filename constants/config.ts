@@ -1,13 +1,13 @@
 // Backend Configuration
 export const API_CONFIG = {
-  BASE_URL: 'https://api.rork.com',
+  BASE_URL: 'https://y485kjs73qlaycog44fhb.rork.app',
   HEALTH_ENDPOINT: '/healthz',
-  TIMEOUT: 3000,
+  TIMEOUT: 5000,
 } as const;
 
 // WebSocket Configuration
 export const WS_CONFIG = {
-  URL: 'wss://api.rork.com',
+  URL: 'wss://y485kjs73qlaycog44fhb.rork.app',
   PATH: '/realtime',
   RECONNECTION_DELAY: 500,
   RECONNECTION_DELAY_MAX: 5000,

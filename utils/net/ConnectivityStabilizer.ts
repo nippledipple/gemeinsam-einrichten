@@ -14,7 +14,7 @@ export function startConnectivityLoop(onChange: (online: boolean) => void) {
   async function check() {
     const ni = await NetInfo.fetch();
     const netReachable = !!(ni.isConnected && (ni.isInternetReachable ?? true));
-    const pingOK = await pingOnce(3000);
+    const pingOK = await pingOnce(5000);
     const ok = netReachable && pingOK;
 
     if (ok) {
