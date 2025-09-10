@@ -283,17 +283,23 @@ setTimeout(() => {
 
 // Debug endpoint to show all registered routes
 app.get('/debug/routes', (c) => {
+  c.header("Cache-Control", "no-store");
+  c.header("Content-Type", "application/json; charset=utf-8");
   return c.json({
-    message: 'Available routes',
-    routes: [
-      'GET /__ping',
-      'GET /healthz', 
-      'GET /api/healthz',
-      'GET /api/',
-      'POST /api/trpc/*',
-      'GET /debug/routes'
+    message: 'Available routes on root app',
+    rootRoutes: [
+      'GET /__ping -> text/plain "pong"',
+      'GET /healthz -> application/json {"status":"ok"}', 
+      'GET /debug/routes -> this endpoint'
     ],
-    timestamp: new Date().toISOString()
+    apiRoutes: [
+      'GET /api/healthz -> application/json {"status":"ok"}',
+      'GET /api/ -> application/json API status',
+      'POST /api/trpc/* -> tRPC endpoints'
+    ],
+    publicDomain: 'https://y485kjs73qlaycog44fhb.rork.app',
+    timestamp: new Date().toISOString(),
+    serverStatus: 'running'
   });
 });
 
