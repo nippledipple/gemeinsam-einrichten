@@ -6,7 +6,17 @@ import { createContext } from "./trpc/create-context";
 import { Server as SocketIOServer } from "socket.io";
 import { createServer } from "http";
 
-// app will be mounted at /api
+// Health check handler
+const healthHandler = (c: any) => {
+  c.header("Cache-Control", "no-store");
+  c.header("Content-Type", "application/json; charset=utf-8");
+  return c.json({ status: "ok" });
+};
+
+// API app (will be mounted at /api)
+const apiApp = new Hono();
+
+// Root app (handles both /healthz and /api routes)
 const app = new Hono();
 
 // Socket.IO server setup
@@ -176,11 +186,11 @@ httpServer.listen(3001, () => {
   console.log("Socket.IO server running on port 3001");
 });
 
-// Enable CORS for all routes
-app.use("*", cors());
+// Enable CORS for API routes
+apiApp.use("*", cors());
 
 // Mount tRPC router at /trpc
-app.use(
+apiApp.use(
   "/trpc/*",
   trpcServer({
     endpoint: "/api/trpc",
@@ -189,15 +199,21 @@ app.use(
   })
 );
 
-// Health check endpoint
-app.get("/healthz", (c) => {
-  c.header("Cache-Control", "no-store");
-  return c.json({ status: "ok" });
-});
+// Health check endpoint for API
+apiApp.get("/healthz", healthHandler);
 
-// Simple health check endpoint
-app.get("/", (c) => {
+// Simple health check endpoint for API root
+apiApp.get("/", (c) => {
   return c.json({ status: "ok", message: "API is running" });
 });
+
+// Enable CORS for root app
+app.use("*", cors());
+
+// Root level health check (redundant route)
+app.get("/healthz", healthHandler);
+
+// Mount API app at /api
+app.route("/api", apiApp);
 
 export default app;
