@@ -311,7 +311,7 @@ console.log('🚀 Starting HTTP server...');
 // Just export the app for the platform to handle
 
 // Startup logging
-console.log('🚀 Hono server starting...');
+console.log('🚀 Hono server starting on preview domain...');
 console.log(`🌐 HTTP Server will listen on 0.0.0.0:${PORT}`);
 console.log('📍 Registered routes:');
 console.log('  GET /__ping -> text/plain "pong"');
