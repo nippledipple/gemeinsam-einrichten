@@ -210,6 +210,13 @@ apiApp.get("/", (c) => {
 // Enable CORS for root app
 app.use("*", cors());
 
+// Ping endpoint
+app.get("/__ping", (c) => {
+  c.header("Cache-Control", "no-store");
+  c.header("Content-Type", "text/plain; charset=utf-8");
+  return c.text("pong");
+});
+
 // Root level health check (redundant route)
 app.get("/healthz", healthHandler);
 
