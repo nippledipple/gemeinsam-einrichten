@@ -223,4 +223,76 @@ app.get("/healthz", healthHandler);
 // Mount API app at /api
 app.route("/api", apiApp);
 
+// Internal self-test on startup
+const PORT = process.env.PORT || 3000;
+const testEndpoints = async () => {
+  try {
+    console.log('🔍 Testing internal endpoints...');
+    
+    // Test /__ping
+    const pingResponse = await fetch(`http://127.0.0.1:${PORT}/__ping`);
+    console.log(`/__ping: ${pingResponse.status} - ${await pingResponse.text()}`);
+    
+    // Test /healthz
+    const healthResponse = await fetch(`http://127.0.0.1:${PORT}/healthz`);
+    console.log(`/healthz: ${healthResponse.status} - ${JSON.stringify(await healthResponse.json())}`);
+    
+    console.log('✅ Internal endpoint tests completed');
+  } catch (error) {
+    console.error('❌ Internal endpoint test failed:', error);
+  }
+};
+
+// Test endpoints after a short delay to ensure server is ready
+setTimeout(testEndpoints, 2000);
+
+// External test endpoint
+const testExternalEndpoints = async () => {
+  try {
+    console.log('🌐 Testing external endpoints...');
+    
+    // Test external /__ping
+    const extPingResponse = await fetch('https://y485kjs73qlaycog44fhb.rork.app/__ping');
+    console.log(`External /__ping: ${extPingResponse.status} - ${await extPingResponse.text()}`);
+    
+    // Test external /healthz
+    const extHealthResponse = await fetch('https://y485kjs73qlaycog44fhb.rork.app/healthz');
+    console.log(`External /healthz: ${extHealthResponse.status} - ${JSON.stringify(await extHealthResponse.json())}`);
+    
+    console.log('✅ External endpoint tests completed');
+  } catch (error) {
+    console.error('❌ External endpoint test failed:', error);
+  }
+};
+
+// Test external endpoints after internal tests
+setTimeout(testExternalEndpoints, 5000);
+
+// Debug endpoint to show all registered routes
+app.get('/debug/routes', (c) => {
+  return c.json({
+    message: 'Available routes',
+    routes: [
+      'GET /__ping',
+      'GET /healthz', 
+      'GET /api/healthz',
+      'GET /api/',
+      'POST /api/trpc/*',
+      'GET /debug/routes'
+    ],
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Startup logging
+console.log('🚀 Hono server starting...');
+console.log('📍 Registered routes:');
+console.log('  GET /__ping');
+console.log('  GET /healthz');
+console.log('  GET /api/healthz');
+console.log('  GET /api/');
+console.log('  POST /api/trpc/*');
+console.log('  GET /debug/routes');
+console.log('🌐 Public domain: https://y485kjs73qlaycog44fhb.rork.app');
+
 export default app;
